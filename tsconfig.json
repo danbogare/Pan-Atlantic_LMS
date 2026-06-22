@@ -1,0 +1,50 @@
+{
+  "compilerOptions": {
+    /* Language & Environment */
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+
+    /* File Layout */
+    "rootDir": "./src",
+    "outDir": "./dist",
+
+    /* Node types */
+    "types": ["node"],
+
+    /* Module Interop */
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+
+    /* Output */
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+    "removeComments": true,
+
+    /* Strict Type-Checking (good for OOP discipline) */
+    "strict": true,
+    "strictPropertyInitialization": true,
+    "noImplicitAny": true,
+    "noImplicitOverride": true,
+    "noUncheckedIndexedAccess": true,
+    "useDefineForClassFields": true,
+
+    /* Decorators (handy if we use them later) */
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+
+    /* Code Quality */
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}
