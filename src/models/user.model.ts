@@ -18,7 +18,6 @@ export interface IUser extends Document {
   updatedAt: Date;
 }
 
-// 3. Mongoose Schema matching the interface
 const UserSchema = new Schema<IUser>({
   firstName: { type: String, required: true, trim: true },
   lastName: { type: String, required: true, trim: true },
