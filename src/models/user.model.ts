@@ -2,6 +2,7 @@ import { Schema, model, Document } from 'mongoose';
 
 export enum UserRole {
   ADMIN = 'admin',
+  SUPERVISOR = 'supervisor',
   INSTRUCTOR = 'instructor',
   STUDENT = 'student'
 }
@@ -13,6 +14,7 @@ export interface IUser extends Document {
   passwordHash: string;
   role: UserRole;
   isActive: boolean;
+  mustChangePassword: boolean;
   learningStreak?: number;
   createdAt: Date;
   updatedAt: Date;
@@ -36,6 +38,7 @@ const UserSchema = new Schema<IUser>({
     default: UserRole.STUDENT 
   },
   isActive: { type: Boolean, default: true },
+  mustChangePassword: { type: Boolean, default: false },
   learningStreak: { type: Number, default: 0 }
 }, {
   timestamps: true 

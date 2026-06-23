@@ -1,14 +1,15 @@
 import { Model } from 'mongoose';
-import { User, IUser } from '../models/user.model';
-import { IUserRepository } from '../interfaces/user-repository.interface';
+import { IUser } from '../models/user.model';
+
+export interface IUserRepository {
+  findById(id: string): Promise<IUser | null>;
+  findByEmail(email: string): Promise<IUser | null>;
+  create(userData: Partial<IUser>): Promise<IUser>;
+  updateStreak(id: string, newStreak: number): Promise<IUser | null>;
+}
 
 export class UserRepository implements IUserRepository {
-  private model: Model<IUser>;
-
-  constructor() {
-    // We bind the functional Mongoose model to our class instance
-    this.model = User;
-  }
+  constructor(private readonly model: Model<IUser>) {}
 
   public async findById(id: string): Promise<IUser | null> {
     return await this.model.findById(id).exec();

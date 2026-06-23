@@ -1,0 +1,32 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Pan-Atlantic Learning Management System API",
+    "version": "1.0.0",
+    "description": "Enterprise backend API documentation for the Pan-Atlantic LMS dashboard, curriculum tracking, and student progression."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080/api/v1",
+      "description": "Local Development Server"
+    }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "summary": "Root Health Check",
+        "description": "Returns the status of the LMS core application layer.",
+        "responses": {
+          "200": {
+            "description": "Success response indicating the system is alive.",
+            "content": {
+              "text/plain": {
+                "example": "Pan-Atlantic Learning Management System Service is Live!"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

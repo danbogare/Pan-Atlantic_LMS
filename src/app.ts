@@ -1,42 +1,58 @@
-import express, { Application, Request, Response } from 'express';
-
-interface IDatabaseManager {
-  connect(): Promise<void>;
-  disconnect(): Promise<void>;
-}
+import express, { Application, Request, Response } from "express";
+import swaggerUI from "swagger-ui-express";
+import * as swaggerDocument from "./config/swagger.json";
+import morgan from "morgan";
+import { ErrorMiddleware } from "./middlewares/error.middleware";
 
 class App {
   public readonly instance: Application;
-  private dbManager: IDatabaseManager;
 
-  constructor(dbManager: IDatabaseManager) {
+  constructor(private errorMiddleware: ErrorMiddleware) {
     this.instance = express();
-    this.dbManager = dbManager;
-    
+
     this.initializeMiddlewares();
-    this.initializeRoutes();
+    this.initializeSwaggerUI();
+    this.initializeBaseRoutes();
+    this.initializeErrorHandling();
   }
 
-  private initializeMiddlewares() {
+  private initializeMiddlewares(): void {
     this.instance.use(express.json());
     this.instance.use(express.urlencoded({ extended: true }));
+    this.instance.use(morgan("dev"));
   }
 
-  private initializeRoutes() {
-    this.instance.get('/', (_req: Request, res: Response) => {
-      res.send('Pan-Atlantic Learning Management System API service.');
+  private initializeSwaggerUI(): void {
+    this.instance.use(
+      "/docs",
+      swaggerUI.serve,
+      swaggerUI.setup(swaggerDocument)
+    );
+  }
+
+  private initializeBaseRoutes(): void {
+    this.instance.get("/", (_req: Request, res: Response) => {
+      res.send("Pan-Atlantic Learning Management System API service.");
     });
 
+    this.instance.get("/health", (_req: Request, res: Response) => {
+      res.status(200).json({
+        success: true,
+        message: "LMS is Live!",
+      });
+    });
 
-    this.instance.get('/health', (_req: Request, res: Response) => {
-      res.status(200).json({ success: true, message: 'Pan-Atlantic Learning Management System is Live!' });
+    // 404
+    this.instance.use((_req, res) => {
+      res.status(404).json({
+        success: false,
+        message: "Route not found",
+      });
     });
   }
 
-  // Gracefully shuts down all application dependencies.
-  public async shutdown(): Promise<void> {
-    console.log('Shutting down application layers cleanly...');
-    await this.dbManager.disconnect();
+  private initializeErrorHandling(): void {
+    this.instance.use(this.errorMiddleware.handle);
   }
 }
 

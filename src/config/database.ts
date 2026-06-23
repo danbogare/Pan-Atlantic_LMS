@@ -25,11 +25,11 @@ class DatabaseManager {
     });
 
     mongoose.connection.on('error', (error) => {
-      console.error(`❌ MongoDB connection error: ${error}`);
+      console.error(`MongoDB connection error: ${error}`);
     });
 
     mongoose.connection.on('disconnected', () => {
-      console.warn('⚠️ MongoDB disconnected.');
+      console.warn('MongoDB disconnected.');
     });
   }
 
@@ -38,7 +38,7 @@ class DatabaseManager {
     try {
       await mongoose.connect(env.mongoUri);
     } catch (error) {
-      console.error('❌ Failed to connect to MongoDB initialization:', error);
+      console.error('Failed to connect to MongoDB initialization:', error);
       process.exit(1); // Crash gracefully; a server without its DB is a sitting duck
     }
   }
@@ -47,9 +47,9 @@ class DatabaseManager {
   public async disconnect(): Promise<void> {
     try {
       await mongoose.disconnect();
-      console.log('🍃 MongoDB connection closed gracefully.');
+      console.log('MongoDB connection closed gracefully.');
     } catch (error) {
-      console.error('❌ Error during MongoDB disconnection:', error);
+      console.error('Error during MongoDB disconnection:', error);
     }
   }
 }
