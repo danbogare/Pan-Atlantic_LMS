@@ -4,7 +4,11 @@ import { IUserRepository } from "../interfaces/user-repository.interface";
 import { UserRole } from "../models/user.model";
 import { IMailService } from "./mail.service";
 
-export class UserService {
+export interface IUserService {
+  inviteStudent(firstName: string, lastName: string, email: string): Promise<void>;
+}
+
+export class UserService implements IUserService {
   constructor(
     private readonly userRepository: IUserRepository,
     private readonly mailService: IMailService
@@ -35,7 +39,7 @@ export class UserService {
       mustChangePassword: true
     });
 
-    // 🔥 fire-and-forget (intentional non-blocking email)
+    // fire-and-forget (intentional non-blocking email)
     void this.mailService.sendStudentInviteEmail(
       email,
       firstName,
@@ -43,7 +47,7 @@ export class UserService {
     );
 
     console.log(
-      "🚀 Student created. Email dispatched asynchronously."
+      "Student created. Email dispatched asynchronously."
     );
   }
 }
