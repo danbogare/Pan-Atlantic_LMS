@@ -1,9 +1,8 @@
-import crypto from "crypto";
-import bcrypt from "bcryptjs";
-import { IUserRepository } from "../interfaces/user-repository.interface";
+import { IUserRepository } from "../repositories/user.repository";
 import { UserRole } from "../models/user.model";
 import { IMailService } from "./mail.service";
 import { UserExistsError } from "../errors/error";
+import { ICryptoService } from "./crypto.service";
 
 export interface IUserService {
   inviteStudent(firstName: string, lastName: string, email: string): Promise<void>;
@@ -12,7 +11,8 @@ export interface IUserService {
 export class UserService implements IUserService {
   constructor(
     private readonly userRepository: IUserRepository,
-    private readonly mailService: IMailService
+    private readonly mailService: IMailService,
+    private readonly cryptoService: ICryptoService
   ) {}
 
   public async inviteStudent(
@@ -27,9 +27,9 @@ export class UserService implements IUserService {
       throw new UserExistsError();
     }
 
-    const tempPassword = `LMS-${crypto.randomBytes(3).toString("hex")}`;
+    const tempPassword = this.cryptoService.generateTempPass();
 
-    const secureHash = await bcrypt.hash(tempPassword, 12);
+    const secureHash = await this.cryptoService.hashPassword(tempPassword);
 
     await this.userRepository.create({
       firstName,

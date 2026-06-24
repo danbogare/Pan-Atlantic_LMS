@@ -3,16 +3,20 @@ import swaggerUI from "swagger-ui-express";
 import * as swaggerDocument from "./config/swagger.json";
 import morgan from "morgan";
 import { ErrorMiddleware } from "./middlewares/error.middleware";
+import { env } from "./config/env";
 
 class App {
   public readonly instance: Application;
+  private readonly errorMiddleware: ErrorMiddleware;
 
-  constructor(private errorMiddleware: ErrorMiddleware) {
+  constructor() {
     this.instance = express();
+    this.errorMiddleware = new ErrorMiddleware(env.nodeEnv);
 
     this.initializeMiddlewares();
     this.initializeSwaggerUI();
     this.initializeBaseRoutes();
+    this.initialize404Handling();
     this.initializeErrorHandling();
   }
 
@@ -41,12 +45,13 @@ class App {
         message: "LMS is Live!",
       });
     });
+  }
 
-    // 404
+  private initialize404Handling(): void {
     this.instance.use((_req, res) => {
       res.status(404).json({
         success: false,
-        message: "Route not found",
+        message: "Not found",
       });
     });
   }

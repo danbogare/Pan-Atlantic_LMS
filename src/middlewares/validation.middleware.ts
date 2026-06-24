@@ -15,9 +15,11 @@ export const validate = (schema: z.ZodTypeAny): RequestHandler => {
       const firstErrorMessage = result.error.issues[0]?.message || "Validation error";
 
       errorResponse(res, 400, firstErrorMessage);
-      
       return;
     }
+
+    // Overwrite req.body with the sanitized, trimmed, and stripped data outputted by Zod.
+    req.body = result.data;
 
     next();
   };

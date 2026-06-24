@@ -48,3 +48,20 @@ export class OTPExpiredError extends AppError {
     super(400, "The verification code has expired. Please request a new one.");
   }
 }
+export class InvalidOTPError extends AppError {
+  constructor() {
+    super(400, "invalid OTP");
+  }
+}
+
+export class UnauthorizedError extends AppError {
+  constructor(message: string = "Unauthorized") {
+    super(401, message);
+  }
+}
+
+export class ForbiddenError extends AppError {
+  constructor(message: string = "You do not have permission to perform this action") {
+    super(403, message);
+  }
+}
