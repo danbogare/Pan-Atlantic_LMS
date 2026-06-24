@@ -1,6 +1,7 @@
 import nodemailer, { Transporter } from "nodemailer";
 import { Resend } from "resend";
 import { studentInviteTemplate } from "../templates/student-invite.template";
+import { passwordResetTemplate } from "../templates/password-reset.template";
 
 export interface IMailProvider {
   send(to: string, subject: string, html: string): Promise<void>;
@@ -59,6 +60,7 @@ export class SMTPProvider implements IMailProvider {
 
 export interface IMailService {
   sendStudentInviteEmail(email: string, firstName: string, tempPassword: string): Promise<void>;
+  sendPasswordResetEmail(email: string, firstName: string, otp: string, expiresInMinutes?: number ): Promise<void>;
 }
 export class MailService implements IMailService {
   constructor(private provider: IMailProvider) {}
@@ -80,6 +82,25 @@ export class MailService implements IMailService {
     } catch (error) {
       console.error(`Email failed for ${email}:`, error);
 
+      // IMPORTANT: don't silently succeed
+      throw error;
+    }
+  }
+
+  async sendPasswordResetEmail(
+    email: string,
+    firstName: string,
+    otp: string,
+    expiresInMinutes: number = 5
+  ): Promise<void> {
+    const subject = "Reset Your Pan-Atlantic LMS Password";
+    const html = passwordResetTemplate(firstName, otp, expiresInMinutes);
+
+    try {
+      await this.provider.send(email, subject, html);
+      console.log(`Email sent to ${email}`);
+    } catch (error) {
+      console.error(`Email failed for ${email}:`, error);
       // IMPORTANT: don't silently succeed
       throw error;
     }

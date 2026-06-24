@@ -12,7 +12,7 @@
     }
   ],
   "paths": {
-    "/": {
+    "/health": {
       "get": {
         "summary": "Root Health Check",
         "description": "Returns the status of the LMS core application layer.",
@@ -25,6 +25,193 @@
               }
             }
           }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "User Authentication",
+        "description": "Validates user credentials and returns user profile data without password hash.",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string", "format": "email", "example": "student@pau.edu.ng" },
+                  "password": { "type": "string", "example": "SecureP@ss123" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Logged in successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "logged in successfully." },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "user": { "$ref": "#/components/schemas/User" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid credentials (InvalidCredentialError).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "success": false, "message": "invalid credentials" }
+              }
+            }
+          },
+          "403": {
+            "description": "Account disabled (AccountDisabledError).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "success": false, "message": "Your account has been deactivated. Please contact support." }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/password-reset-request": {
+      "post": {
+        "summary": "Request Password Reset Code",
+        "description": "Triggers generation of a secure 6-digit OTP code sent via email.",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email"],
+                "properties": {
+                  "email": { "type": "string", "format": "email", "example": "student@pau.edu.ng" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Request processed (Silent return if user is not found to prevent user discovery sniffing).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "If the email exists, a reset token has been dispatched." }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "OTP already exists (OTPExistsError).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "success": false, "message": "OTP already generated, check email" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/reset-password": {
+      "post": {
+        "summary": "Execute Password Reset",
+        "description": "Verifies the email OTP token and commits the new password.",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "code", "newPassword"],
+                "properties": {
+                  "email": { "type": "string", "format": "email", "example": "student@pau.edu.ng" },
+                  "code": { "type": "string", "example": "482910" },
+                  "newPassword": { "type": "string", "example": "NewSecureP@ss2026" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password successfully updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Password reset successfully." }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Request / Expired OTP (UserNotFoundError, InvalidRequestError, OTPExpiredError, or InvalidCredentialError).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "examples": {
+                  "expiredOtp": { "value": { "success": false, "message": "The verification code has expired. Please request a new one." } },
+                  "invalidCode": { "value": { "success": false, "message": "invalid credentials" } },
+                  "userNotFound": { "value": { "success": false, "message": "User not found" } }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "641f1234567890abcdef1234" },
+          "firstName": { "type": "string", "example": "John" },
+          "lastName": { "type": "string", "example": "Doe" },
+          "email": { "type": "string", "example": "student@pau.edu.ng" },
+          "role": { "type": "string", "example": "student" },
+          "isActive": { "type": "boolean", "example": true },
+          "mustChangePassword": { "type": "boolean", "example": false },
+          "learningStreak": { "type": "integer", "example": 5 },
+          "createdAt": { "type": "string", "format": "date-time", "example": "2026-03-10T14:22:18.000Z" },
+          "updatedAt": { "type": "string", "format": "date-time", "example": "2026-06-24T15:00:00.000Z" }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "message": { "type": "string", "example": "Error message details matching your middleware." },
+          "stack": { "type": "string", "example": "Error: ... (Only visible when NODE_ENV=development)" }
         }
       }
     }

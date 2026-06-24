@@ -6,6 +6,7 @@ export interface IUserRepository {
   findByEmail(email: string): Promise<IUser | null>;
   create(userData: Partial<IUser>): Promise<IUser>;
   updateStreak(id: string, newStreak: number): Promise<IUser | null>;
+  updatePassword(id: string, newPasswordHash: string): Promise<void>;
 }
 
 export class UserRepository implements IUserRepository {
@@ -28,6 +29,13 @@ export class UserRepository implements IUserRepository {
       id,
       { $set: { learningStreak: newStreak } },
       { new: true }
+    ).exec();
+  }
+
+  public async updatePassword(id: string, newPasswordHash: string): Promise<void> {
+    await this.model.findByIdAndUpdate(
+      id,
+      { $set: { passwordHash: newPasswordHash, mustChangePassword: false } }
     ).exec();
   }
 }

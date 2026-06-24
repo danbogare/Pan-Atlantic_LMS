@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { IUserRepository } from "../interfaces/user-repository.interface";
 import { UserRole } from "../models/user.model";
 import { IMailService } from "./mail.service";
+import { UserExistsError } from "../errors/error";
 
 export interface IUserService {
   inviteStudent(firstName: string, lastName: string, email: string): Promise<void>;
@@ -23,7 +24,7 @@ export class UserService implements IUserService {
     const existingUser = await this.userRepository.findByEmail(email);
 
     if (existingUser) {
-      throw new Error("Account already exists.");
+      throw new UserExistsError();
     }
 
     const tempPassword = `LMS-${crypto.randomBytes(3).toString("hex")}`;

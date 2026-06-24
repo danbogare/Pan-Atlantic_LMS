@@ -11,6 +11,6 @@ export class UserController {
 
     await this.userService.inviteStudent(firstName, lastName, email);
 
-    createdSuccessResponse(res, "Student invited successfully.", {});
+    createdSuccessResponse(res, "invite sent successfully.", {});
   };
 }
