@@ -12,7 +12,20 @@ declare global {
   }
 }
 
-export class AuthMiddleware {
+export interface IAuthMiddleware {
+  requireAuth: (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => Promise<void>;
+  requireAdmin: (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => Promise<void>;
+}
+
+export class AuthMiddleware implements IAuthMiddleware {
   constructor(private readonly cryptoService: ICryptoService) {}
 
   public requireAuth = async (

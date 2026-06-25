@@ -9,16 +9,20 @@ export interface IAdminSeedConfig {
   lastName: string;
 }
 
+export interface ISMTPConfig {
+  host: string;
+  port: number;
+  user: string;
+  pass: string;
+}
+
 
 interface EnvConfig {
   nodeEnv: string;
   port: number;
   mongoUri: string;
   jwtSecret: string;
-  smtpHost: string;
-  smtpPort: number;
-  smtpUser: string;
-  smtpPass: string;
+  smtp: ISMTPConfig;
   admin: IAdminSeedConfig;
   resendApiKey: string;
 }
@@ -37,10 +41,12 @@ export const env: EnvConfig = {
   mongoUri: requireEnv('MONGO_URI'),
   jwtSecret: requireEnv('JWT_ACCESS_SECRET'),
   resendApiKey: requireEnv('RESEND_API_KEY'),
-  smtpHost: requireEnv('SMTP_HOST'),
-  smtpPort: Number(requireEnv('SMTP_PORT')),
-  smtpUser: requireEnv('SMTP_USER'),
-  smtpPass: requireEnv('SMTP_PASS'),
+  smtp: {
+    host: requireEnv('SMTP_HOST'),
+    port: Number(requireEnv('SMTP_PORT')),
+    user: requireEnv('SMTP_USER'),
+    pass: requireEnv('SMTP_PASS'),
+  },
   admin: {
     email: requireEnv('ADMIN_EMAIL'),
     password: requireEnv('ADMIN_PASSWORD'),

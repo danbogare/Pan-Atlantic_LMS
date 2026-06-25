@@ -4,6 +4,19 @@ import * as swaggerDocument from "./config/swagger.json";
 import morgan from "morgan";
 import { ErrorMiddleware } from "./middlewares/error.middleware";
 import { env } from "./config/env";
+import { CryptoService } from "./services/crypto.service";
+import { UserRepository } from "./repositories/user.repository";
+import { User } from "./models/user.model";
+import { Otp } from "./models/otp.model";
+import { OtpRepository } from "./repositories/otp.repository";
+import { MailService, ResendProvider, SMTPProvider } from "./services/mail.service";
+import { AuthController } from "./controllers/auth.controller";
+import { AuthService } from "./services/auth.service";
+import { UserService } from "./services/user.service";
+import { AuthMiddleware } from "./middlewares/auth.middleware";
+import { UserController } from "./controllers/user.controller";
+import { AuthRouter } from "./routes/auth.route";
+import { AdminRouter } from "./routes/admin.route";
 
 class App {
   public readonly instance: Application;
@@ -16,6 +29,7 @@ class App {
     this.initializeMiddlewares();
     this.initializeSwaggerUI();
     this.initializeBaseRoutes();
+    this.initializeApiRoutes();
     this.initialize404Handling();
     this.initializeErrorHandling();
   }
@@ -45,6 +59,36 @@ class App {
         message: "LMS is Live!",
       });
     });
+  }
+
+  private initializeApiRoutes(): void {
+    // Dependencies Injection
+    // repositories
+    const userRepository = new UserRepository(User);
+    const otpRepository = new OtpRepository(Otp);
+
+    // services
+    const cryptoService = new CryptoService(env.jwtSecret);
+    const resendProvider = new ResendProvider(env.resendApiKey);
+    const smtpProvider = new SMTPProvider(env.smtp);
+    const mailProvider = env.nodeEnv === "production" ? resendProvider : smtpProvider;
+    const mailService = new MailService(mailProvider);
+    const authService = new AuthService(userRepository, otpRepository, mailService, cryptoService);
+    const userService = new UserService(userRepository, mailService, cryptoService);
+
+    // middlware
+    const authMiddleware = new AuthMiddleware(cryptoService);
+
+    // controllers
+    const authController = new AuthController(authService);
+    const userController = new UserController(userService);
+
+    // routes
+    const authRouter = new AuthRouter(authController, authMiddleware);
+    const adminRouter = new AdminRouter(userController, authMiddleware);
+
+    this.instance.use("/auth", authRouter.getRouter());
+    this.instance.use("/admin", adminRouter.getRouter());
   }
 
   private initialize404Handling(): void {

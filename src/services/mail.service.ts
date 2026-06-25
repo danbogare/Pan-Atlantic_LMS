@@ -2,6 +2,7 @@ import nodemailer, { Transporter } from "nodemailer";
 import { Resend } from "resend";
 import { studentInviteTemplate } from "../templates/student-invite.template";
 import { passwordResetTemplate } from "../templates/password-reset.template";
+import { ISMTPConfig } from "../config/env";
 
 export interface IMailProvider {
   send(to: string, subject: string, html: string): Promise<void>;
@@ -25,24 +26,17 @@ export class ResendProvider implements IMailProvider {
   }
 }
 
-interface IMailConfig {
-  smtpHost: string;
-  smtpPort: number;
-  smtpUser: string;
-  smtpPass: string;
-}
-
 export class SMTPProvider implements IMailProvider {
   private transporter: Transporter;
 
-  constructor(config: IMailConfig) {
+  constructor(config: ISMTPConfig) {
     this.transporter = nodemailer.createTransport({
-      host: config.smtpHost,
-      port: config.smtpPort,
-      auth: config.smtpUser
+      host: config.host,
+      port: config.port,
+      auth: config.user
         ? {
-            user: config.smtpUser,
-            pass: config.smtpPass,
+            user: config.user,
+            pass: config.pass,
           }
         : undefined,
     });
