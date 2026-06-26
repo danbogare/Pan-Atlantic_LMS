@@ -1,4 +1,5 @@
 import express, { Application, Request, Response } from "express";
+import cors from "cors";
 import swaggerUI from "swagger-ui-express";
 import * as swaggerDocument from "./config/swagger.json";
 import morgan from "morgan";
@@ -35,16 +36,26 @@ class App {
   }
 
   private initializeMiddlewares(): void {
+    this.instance.use(cors());
     this.instance.use(express.json());
     this.instance.use(express.urlencoded({ extended: true }));
     this.instance.use(morgan("dev"));
   }
 
   private initializeSwaggerUI(): void {
+    const dynamicSwaggerDoc = {
+      ...swaggerDocument,
+      servers: [
+        {
+          url: env.apiUrl,
+          description: env.nodeEnv === "production" ? "Production Server" : "Local Development Server",
+        },
+      ],
+    };
     this.instance.use(
       "/docs",
       swaggerUI.serve,
-      swaggerUI.setup(swaggerDocument)
+      swaggerUI.setup(dynamicSwaggerDoc)
     );
   }
 
@@ -66,6 +77,9 @@ class App {
     // repositories
     const userRepository = new UserRepository(User);
     const otpRepository = new OtpRepository(Otp);
+
+    // seed admin
+
 
     // services
     const cryptoService = new CryptoService(env.jwtSecret);

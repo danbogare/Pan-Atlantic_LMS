@@ -20,6 +20,7 @@ export interface ISMTPConfig {
 interface EnvConfig {
   nodeEnv: string;
   port: number;
+  apiUrl: string;
   mongoUri: string;
   jwtSecret: string;
   smtp: ISMTPConfig;
@@ -38,6 +39,7 @@ function requireEnv(key: string): string {
 export const env: EnvConfig = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
   port: Number(process.env.PORT ?? 4000),
+  apiUrl: process.env.API_URL ?? `http://localhost:${process.env.PORT ?? 4000}`,
   mongoUri: requireEnv('MONGO_URI'),
   jwtSecret: requireEnv('JWT_ACCESS_SECRET'),
   resendApiKey: requireEnv('RESEND_API_KEY'),
@@ -49,7 +51,7 @@ export const env: EnvConfig = {
   },
   admin: {
     email: requireEnv('ADMIN_EMAIL'),
-    password: requireEnv('ADMIN_PASSWORD'),
+    password: requireEnv('ADMIN_PASS'),
     firstName: requireEnv('ADMIN_FIRST_NAME'),
     lastName: requireEnv('ADMIN_LAST_NAME'),
   },

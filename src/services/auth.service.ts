@@ -13,9 +13,10 @@ import {
   InvalidOTPError
 } from "../errors/error"; // Adjust path to your errors file
 import { ICryptoService } from "./crypto.service";
+import { IAuthUser, IAuthUserPayload } from "../interfaces/auth.interface";
 
 export interface IAuthService {
-  authUser(email: string, password: string): Promise<IUser>;
+  authUser(email: string, password: string): Promise<IAuthUser>;
   requestPasswordReset(email: string): Promise<void>;
   resetPassword(email: string, code: string, newPassword: string): Promise<void>;
   changePassword(id: string, oldPassword: string, newPassword: string): Promise<void>;
@@ -29,7 +30,7 @@ export class AuthService implements IAuthService {
     private readonly cryptoService: ICryptoService
   ) {}
 
-  public async authUser(email: string, password: string): Promise<IUser> {
+  public async authUser(email: string, password: string): Promise<IAuthUser> {
     const user = await this.userRepository.findByEmail(email);
     if (!user) {
       throw new InvalidCredentialError();
@@ -49,7 +50,20 @@ export class AuthService implements IAuthService {
     const userObj = user.toObject();
     delete (userObj as any).passwordHash;
 
-    return userObj as unknown as IUser;
+    const tokenData: IAuthUserPayload = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    const accessToken = this.cryptoService.generateToken(tokenData);
+
+    const authData: IAuthUser = {
+      user: userObj as unknown as IUser,
+      accessToken,
+    };
+
+    return authData;
   }
 
   public async changePassword(id: string, oldPassword: string, newPassword: string): Promise<void> {

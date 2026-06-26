@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { IUserRepository } from "../interfaces/user-repository.interface";
+import { IUserRepository } from "../repositories/user.repository";
 import { UserRole } from "../models/user.model";
 import { IAdminSeedConfig } from "../config/env";
 

@@ -2,8 +2,8 @@ import { Request, Response } from "express";
 import { IAuthService } from "../services/auth.service";
 import { successResponse } from "../utils/response";
 import { ChangePasswordInput, ForgotPasswordInput, LoginInput, ResetPasswordInput } from "../validators/auth.validator";
-import { IUser } from "../models/user.model";
 import { InvalidCredentialError } from "../errors/error";
+import { IAuthUser } from "../interfaces/auth.interface";
 
 export interface IAuthController {
   login: (req: Request<{}, {}, LoginInput>, res: Response) => Promise<void>;
@@ -17,10 +17,10 @@ export class AuthController {
   public login = async (req: Request<{}, {}, LoginInput>, res: Response): Promise<void> => {
     const { email, password } = req.body;
 
-    const user: IUser | null = await this.authService.authUser(email, password);
-    if (!user) throw new InvalidCredentialError();
+    const authUser: IAuthUser = await this.authService.authUser(email, password);
+    if (!authUser.user) throw new InvalidCredentialError();
 
-    successResponse(res, "logged in successfully.", user);
+    successResponse(res, "logged in successfully.", authUser);
   };
 
   public changePassword = async (req: Request<{}, {}, ChangePasswordInput>, res: Response): Promise<void> => {

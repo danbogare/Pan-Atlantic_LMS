@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "http://localhost:8080/api/v1",
+      "url": "http://localhost:4000",
       "description": "Local Development Server"
     }
   ],
@@ -79,8 +79,8 @@
                     "data": {
                       "type": "object",
                       "properties": {
-                        "user": {
-                          "$ref": "#/components/schemas/User"
+                        "AuthData": {
+                          "$ref": "#/components/schemas/AuthData"
                         }
                       }
                     }
@@ -125,8 +125,9 @@
         "summary": "User Authentication",
         "description": "Validates user credentials and returns user profile data without password hash.",
         "tags": [
-          "User"
+          "Admin"
         ],
+        "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -378,6 +379,7 @@
         "tags": [
           "Authentication"
         ],
+        "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -458,51 +460,64 @@
     }
   },
   "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
     "schemas": {
-      "User": {
+      "AuthData": {
         "type": "object",
         "properties": {
-          "id": {
+          "user" : {
+            "id": {
+              "type": "string",
+              "example": "641f1234567890abcdef1234"
+            },
+            "firstName": {
+              "type": "string",
+              "example": "John"
+            },
+            "lastName": {
+              "type": "string",
+              "example": "Doe"
+            },
+            "email": {
+              "type": "string",
+              "example": "student@pau.edu.ng"
+            },
+            "role": {
+              "type": "string",
+              "example": "student"
+            },
+            "isActive": {
+              "type": "boolean",
+              "example": true
+            },
+            "mustChangePassword": {
+              "type": "boolean",
+              "example": false
+            },
+            "learningStreak": {
+              "type": "integer",
+              "example": 5
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "example": "2026-03-10T14:22:18.000Z"
+            },
+            "updatedAt": {
+              "type": "string",
+              "format": "date-time",
+              "example": "2026-06-24T15:00:00.000Z"
+            }
+          },
+          "accessToken": {
             "type": "string",
-            "example": "641f1234567890abcdef1234"
-          },
-          "firstName": {
-            "type": "string",
-            "example": "John"
-          },
-          "lastName": {
-            "type": "string",
-            "example": "Doe"
-          },
-          "email": {
-            "type": "string",
-            "example": "student@pau.edu.ng"
-          },
-          "role": {
-            "type": "string",
-            "example": "student"
-          },
-          "isActive": {
-            "type": "boolean",
-            "example": true
-          },
-          "mustChangePassword": {
-            "type": "boolean",
-            "example": false
-          },
-          "learningStreak": {
-            "type": "integer",
-            "example": 5
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "example": "2026-03-10T14:22:18.000Z"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time",
-            "example": "2026-06-24T15:00:00.000Z"
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
           }
         }
       },
