@@ -18,6 +18,8 @@ import { AuthMiddleware } from "./middlewares/auth.middleware";
 import { UserController } from "./controllers/user.controller";
 import { AuthRouter } from "./routes/auth.route";
 import { AdminRouter } from "./routes/admin.route";
+import { CourseRepository } from "./repositories/course.repository";
+import { Course, Enrollment, InstructorAssignment } from "./models/course.model";
 
 class App {
   public readonly instance: Application;
@@ -77,6 +79,7 @@ class App {
     // repositories
     const userRepository = new UserRepository(User);
     const otpRepository = new OtpRepository(Otp);
+    const courseRepository = new CourseRepository(Course, Enrollment, InstructorAssignment);
 
     // seed admin
 
@@ -88,7 +91,7 @@ class App {
     const mailProvider = env.nodeEnv === "production" ? resendProvider : smtpProvider;
     const mailService = new MailService(mailProvider);
     const authService = new AuthService(userRepository, otpRepository, mailService, cryptoService);
-    const userService = new UserService(userRepository, mailService, cryptoService);
+    const userService = new UserService(userRepository, courseRepository, mailService, cryptoService);
 
     // middlware
     const authMiddleware = new AuthMiddleware(cryptoService);

@@ -11,7 +11,7 @@ export interface IAuthController {
   forgotPassword: (req: Request<{}, {}, ForgotPasswordInput>, res: Response) => Promise<void>;
   resetPassword: (req: Request<{}, {}, ResetPasswordInput>, res: Response) => Promise<void>;
 }
-export class AuthController {
+export class AuthController implements IAuthController {
   constructor(private readonly authService: IAuthService) {}
 
   public login = async (req: Request<{}, {}, LoginInput>, res: Response): Promise<void> => {

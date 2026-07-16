@@ -120,10 +120,116 @@
         }
       }
     },
-    "/admin/student/enroll": {
+    "/admin/students/enroll": {
       "post": {
-        "summary": "User Authentication",
-        "description": "Validates user credentials and returns user profile data without password hash.",
+        "summary": "Student Enrollment",
+        "description": "Enrolls a student in a course.",
+        "tags": [
+          "Admin"
+        ],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "firstName",
+                  "lastName",
+                  "assignedCourseIds"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "student@pau.edu.ng"
+                  },
+                  "firstName": {
+                    "type": "string",
+                    "example": "John"
+                  },
+                  "lastName": {
+                    "type": "string",
+                    "example": "Doe"
+                  },
+                  "assignedCourseIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "example": "641f1234567890abcdef1234"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Enrollment Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "invitation sent successfully."
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "user": {
+                          "$ref": "#/components/schemas/SuccessResponse"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Validator error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Does not have admin privileges.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Unauthorized."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/instructors/invite": {
+      "post": {
+        "summary": "Instructor Invitation",
+        "description": "Enrolls a student in a course.",
         "tags": [
           "Admin"
         ],
@@ -152,6 +258,13 @@
                   "lastName": {
                     "type": "string",
                     "example": "Doe"
+                  },
+                  "assignedCourseIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "example": "641f1234567890abcdef1234"
+                    }
                   }
                 }
               }
@@ -160,7 +273,7 @@
         },
         "responses": {
           "200": {
-            "description": "Logged in successfully.",
+            "description": "Invitation Success.",
             "content": {
               "application/json": {
                 "schema": {
@@ -172,13 +285,13 @@
                     },
                     "message": {
                       "type": "string",
-                      "example": "logged in successfully."
+                      "example": "invitation sent successfully."
                     },
                     "data": {
                       "type": "object",
                       "properties": {
                         "user": {
-                          "$ref": "#/components/schemas/User"
+                          "$ref": "#/components/schemas/SuccessResponse"
                         }
                       }
                     }
@@ -188,7 +301,7 @@
             }
           },
           "400": {
-            "description": "Invalid credentials (InvalidCredentialError).",
+            "description": "Bad Request.",
             "content": {
               "application/json": {
                 "schema": {
@@ -196,7 +309,7 @@
                 },
                 "example": {
                   "success": false,
-                  "message": "invalid credentials"
+                  "message": "Validator error"
                 }
               }
             }
@@ -535,6 +648,22 @@
           "stack": {
             "type": "string",
             "example": "Error: ... (Only visible when NODE_ENV=development)"
+          }
+        }
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "Success."
+          },
+          "data": {
+            "type": "object"
           }
         }
       }

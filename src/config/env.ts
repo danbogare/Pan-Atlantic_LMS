@@ -16,6 +16,12 @@ export interface ISMTPConfig {
   pass: string;
 }
 
+export interface ICloudinaryConfig {
+  cloudName: string;
+  apiKey: string;
+  apiSecret: string;
+}
+
 
 interface EnvConfig {
   nodeEnv: string;
@@ -26,6 +32,7 @@ interface EnvConfig {
   smtp: ISMTPConfig;
   admin: IAdminSeedConfig;
   resendApiKey: string;
+  cloudinary: ICloudinaryConfig
 }
 // Reads a required env var or throws immediately.
 function requireEnv(key: string): string {
@@ -55,4 +62,9 @@ export const env: EnvConfig = {
     firstName: requireEnv('ADMIN_FIRST_NAME'),
     lastName: requireEnv('ADMIN_LAST_NAME'),
   },
+  cloudinary: {
+    cloudName: requireEnv('CLOUDINARY_CLOUD_NAME'),
+    apiKey: requireEnv('CLOUDINARY_API_KEY'),
+    apiSecret: requireEnv('CLOUDINARY_API_SECRET'),
+  }
 };

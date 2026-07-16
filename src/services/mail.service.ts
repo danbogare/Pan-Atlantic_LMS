@@ -54,12 +54,35 @@ export class SMTPProvider implements IMailProvider {
 
 export interface IMailService {
   sendStudentInviteEmail(email: string, firstName: string, tempPassword: string): Promise<void>;
+  sendInstructorInviteEmail(email: string, firstName: string, tempPassword: string): Promise<void>;
   sendPasswordResetEmail(email: string, firstName: string, otp: string, expiresInMinutes?: number ): Promise<void>;
 }
 export class MailService implements IMailService {
   constructor(private provider: IMailProvider) {}
 
   async sendStudentInviteEmail(
+    email: string,
+    firstName: string,
+    tempPassword: string
+  ): Promise<void> {
+    const subject =
+      "Welcome to Pan-Atlantic LMS - Complete Your Registration";
+
+    const html = studentInviteTemplate(firstName, tempPassword);
+
+    try {
+      await this.provider.send(email, subject, html);
+
+      console.log(`Email sent to ${email}`);
+    } catch (error) {
+      console.error(`Email failed for ${email}:`, error);
+
+      // IMPORTANT: don't silently succeed
+      throw error;
+    }
+  }
+  
+  async sendInstructorInviteEmail(
     email: string,
     firstName: string,
     tempPassword: string

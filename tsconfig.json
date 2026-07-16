@@ -11,7 +11,7 @@
     "outDir": "./dist",
 
     /* Node types */
-    "types": ["node"],
+    "types": ["node", "express", "multer"],
 
     /* Module Interop */
     "esModuleInterop": true,

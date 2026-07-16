@@ -1,9 +1,12 @@
 import { Model } from 'mongoose';
-import { IUser } from '../models/user.model';
+import { IUser, UserRole } from '../models/user.model';
 
 export interface IUserRepository {
   findById(id: string): Promise<IUser | null>;
   findByEmail(email: string): Promise<IUser | null>;
+  getAllInstructors(): Promise<IUser[]>;
+  getAllStudents(): Promise<IUser[]>;
+  getUsersByRole(role: UserRole): Promise<IUser[]>;
   create(userData: Partial<IUser>): Promise<IUser>;
   updateStreak(id: string, newStreak: number): Promise<IUser | null>;
   updatePassword(id: string, newPasswordHash: string): Promise<void>;
@@ -19,6 +22,30 @@ export class UserRepository implements IUserRepository {
 
   public async findByEmail(email: string): Promise<IUser | null> {
     return await this.model.findOne({ email }).exec();
+  }
+
+  public async getAllInstructors(): Promise<IUser[]> {
+    return await this.model
+      .find({ role: UserRole.INSTRUCTOR, isActive: true })
+      .select('firstName lastName email')
+      .sort({ firstName: 1 })
+      .exec();
+  }
+
+  public async getAllStudents(): Promise<IUser[]> {
+    return await this.model
+      .find({ role: UserRole.STUDENT, isActive: true })
+      .select('firstName lastName email')
+      .sort({ firstName: 1 })
+      .exec();
+  }
+
+  public async getUsersByRole(role: UserRole): Promise<IUser[]> {
+    return await this.model
+      .find({ role, isActive: true })
+      .select('_id firstName lastName email')
+      .sort({ firstName: 1 })
+      .exec();
   }
 
   public async create(userData: Partial<IUser>): Promise<IUser> {

@@ -16,6 +16,12 @@ export const enrollStudentSchema = z.object({
     .string({ error: "Email is required" })
     .trim()
     .pipe(z.email({ error: "Invalid email address format" })),
+  
+  assignedCourseIds: z
+    .array(
+      z.string().trim().min(1, { error: "Course ID cannot be empty" })
+    )
+    .min(1, { error: "At least one course must be assigned" }),
 });
 
 // Pro-tip: Export the TypeScript type inferred from the Zod schema
