@@ -1,7 +1,6 @@
 import express, { Application, Request, Response } from "express";
 import cors from "cors";
 import swaggerUI from "swagger-ui-express";
-import * as swaggerDocument from "./config/swagger.json";
 import morgan from "morgan";
 import { ErrorMiddleware } from "./middlewares/error.middleware";
 import { env } from "./config/env";
@@ -20,6 +19,14 @@ import { AuthRouter } from "./routes/auth.route";
 import { AdminRouter } from "./routes/admin.route";
 import { CourseRepository } from "./repositories/course.repository";
 import { Course, Enrollment, InstructorAssignment } from "./models/course.model";
+import { CourseContentRepository } from "./repositories/courseModule.repository";
+import { CourseLesson, CourseModule } from "./models/courseModule.model";
+import { CloudinaryService } from "./services/storage.service";
+import { CourseService } from "./services/course.service";
+import { CourseController } from "./controllers/course.controller";
+import { CourseRouter } from "./routes/course.route";
+import { getOpenApiDocument } from "./openapi/document";
+import { apiReference } from "@scalar/express-api-reference";
 
 class App {
   public readonly instance: Application;
@@ -30,7 +37,7 @@ class App {
     this.errorMiddleware = new ErrorMiddleware(env.nodeEnv);
 
     this.initializeMiddlewares();
-    this.initializeSwaggerUI();
+    this.initializeApiDocs();
     this.initializeBaseRoutes();
     this.initializeApiRoutes();
     this.initialize404Handling();
@@ -44,9 +51,9 @@ class App {
     this.instance.use(morgan("dev"));
   }
 
-  private initializeSwaggerUI(): void {
-    const dynamicSwaggerDoc = {
-      ...swaggerDocument,
+  private initializeApiDocs(): void {
+    const document = {
+      ...getOpenApiDocument(),
       servers: [
         {
           url: env.apiUrl,
@@ -54,11 +61,15 @@ class App {
         },
       ],
     };
-    this.instance.use(
-      "/docs",
-      swaggerUI.serve,
-      swaggerUI.setup(dynamicSwaggerDoc)
-    );
+  
+    // Raw spec — useful for Postman import, codegen, etc.
+    this.instance.get("/docs/openapi.json", (_req, res) => res.json(document));
+  
+    // Swagger UI — was at /docs before, now at /docs/swagger to make room for Scalar
+    this.instance.use("/docs/swagger", swaggerUI.serve, swaggerUI.setup(document));
+  
+    // Scalar UI
+    this.instance.use("/docs", apiReference({ theme: "purple", content: document }));
   }
 
   private initializeBaseRoutes(): void {
@@ -80,9 +91,7 @@ class App {
     const userRepository = new UserRepository(User);
     const otpRepository = new OtpRepository(Otp);
     const courseRepository = new CourseRepository(Course, Enrollment, InstructorAssignment);
-
-    // seed admin
-
+    const courseContentRepository = new CourseContentRepository(CourseModule, CourseLesson);
 
     // services
     const cryptoService = new CryptoService(env.jwtSecret);
@@ -92,6 +101,8 @@ class App {
     const mailService = new MailService(mailProvider);
     const authService = new AuthService(userRepository, otpRepository, mailService, cryptoService);
     const userService = new UserService(userRepository, courseRepository, mailService, cryptoService);
+    const storageService = new CloudinaryService(env.cloudinary);
+    const courseService = new CourseService(courseRepository, courseContentRepository, storageService);
 
     // middlware
     const authMiddleware = new AuthMiddleware(cryptoService);
@@ -99,13 +110,16 @@ class App {
     // controllers
     const authController = new AuthController(authService);
     const userController = new UserController(userService);
+    const courseController = new CourseController(courseService);
 
     // routes
     const authRouter = new AuthRouter(authController, authMiddleware);
     const adminRouter = new AdminRouter(userController, authMiddleware);
+    const courseRouter = new CourseRouter(courseController, authMiddleware);
 
     this.instance.use("/auth", authRouter.getRouter());
     this.instance.use("/admin", adminRouter.getRouter());
+    this.instance.use("/course", courseRouter.getRouter());
   }
 
   private initialize404Handling(): void {

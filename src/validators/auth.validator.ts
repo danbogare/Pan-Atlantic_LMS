@@ -1,4 +1,5 @@
 import { z } from "zod";
+import "../openapi/registry";
 
 // export const registerSchema = z.object({
 //   name: z
@@ -22,41 +23,49 @@ export const loginSchema = z.object({
   email: z
     .string({ error: "Email is required" })
     .trim()
-    .pipe(z.email({ error: "Invalid email address format" })),
+    .pipe(z.email({ error: "Invalid email address format" }))
+    .openapi({ example: "jane@example.com" }),
   password: z
     .string({ error: "Password is required" })
-    .min(1, { error: "Password cannot be empty" }),
+    .min(1, { error: "Password cannot be empty" })
+    .openapi({ example: "hunter2" }),
 });
 
 export const forgotPasswordSchema = z.object({
   email: z
     .string({ error: "Email is required" })
     .trim()
-    .pipe(z.email({ error: "Invalid email address format" })),
+    .pipe(z.email({ error: "Invalid email address format" }))
+    .openapi({ example: "jane@example.com" }),
 });
 
 export const resetPasswordSchema = z.object({
   email: z
     .string({ error: "Email is required" })
     .trim()
-    .pipe(z.email({ error: "Invalid email address format" })),
+    .pipe(z.email({ error: "Invalid email address format" }))
+    .openapi({ example: "jane@example.com" }),
   otp: z
     .string({ error: "OTP is required" })
     .trim()
     .regex(/^\d+$/, { message: "OTP must contain numbers only" })
-    .length(6, { message: "OTP must be exactly 6 digits" }),
+    .length(6, { message: "OTP must be exactly 6 digits" })
+    .openapi({ example: "482913", description: "6-digit one-time password sent to the user's email" }),
   newPassword: z
     .string({ error: "Password is required" })
-    .min(1, { error: "Password cannot be empty" }),
+    .min(1, { error: "Password cannot be empty" })
+    .openapi({ example: "newHunter3" }),
 });
 
 export const changePasswordSchema = z.object({
   oldPassword: z
     .string({ error: "Password is required" })
-    .min(1, { error: "Password cannot be empty" }),
+    .min(1, { error: "Password cannot be empty" })
+    .openapi({ example: "hunter2" }),
   newPassword: z
     .string({ error: "Password is required" })
-    .min(1, { error: "Password cannot be empty" }),
+    .min(1, { error: "Password cannot be empty" })
+    .openapi({ example: "newHunter3" }),
 });
 
 // export type RegisterInput = z.infer<typeof registerSchema>;

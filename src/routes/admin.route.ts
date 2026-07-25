@@ -22,5 +22,6 @@ export class AdminRouter {
         this.router.use(asyncHandler(this.authMiddleware.requireAuth));
         this.router.use(asyncHandler(this.authMiddleware.requireAdmin));
         this.router.post("/student/enroll", validate(enrollStudentSchema), asyncHandler(this.userController.enrollStudent));
+        this.router.post("/instructor/invite", validate(enrollStudentSchema), asyncHandler(this.userController.inviteInstructor));
     }
 }

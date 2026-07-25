@@ -19,13 +19,15 @@ export const createCourseSchema = z.object({
   description: z
     .string({ error: "Course description is required" })
     .trim()
-    .min(1, { error: "Description cannot be empty" }),
+    .min(1, { error: "Description cannot be empty" })
+    .openapi({ example: "Learn React in 30 days" }),
 
   level: z
     .enum(CourseLevel, {
       error: "Level must be beginner, intermediate, or advanced",
     })
-    .default(CourseLevel.BEGINNER),
+    .default(CourseLevel.BEGINNER)
+    .openapi({ example: "either of beginner, intermediate, or advanced" }),
 
   duration: requiredNonNegativeNumber("Duration"),
 
@@ -44,13 +46,15 @@ export const updateCourseSchema = z.object({
     .string()
     .trim()
     .min(1, { error: "Description cannot be empty" })
-    .optional(),
+    .optional()
+    .openapi({ example: "Learn React in 30 days" }),
 
   level: z
-    .enum(['beginner', 'intermediate', 'advanced'], {
+    .enum(CourseLevel, {
       error: "Level must be beginner, intermediate, or advanced",
     })
-    .optional(),
+    .optional()
+    .openapi({ example: "either of beginner, intermediate, or advanced" }),
 
   duration: optionalNonNegativeNumber("Duration"),
 
@@ -65,7 +69,7 @@ export type UpdateCourseInput = z.infer<typeof updateCourseSchema>;
 export const createModuleSchema = z.object({
   title: requiredTitle("Module title"),
 
-  description: z.string().trim().optional(),
+  description: z.string().trim().optional().openapi({ example: "Module description" }),
 
   order: requiredNonNegativeNumber("Order"),
 
@@ -78,7 +82,7 @@ export type CreateModuleInput = z.infer<typeof createModuleSchema>;
 export const updateModuleSchema = z.object({
   title: optionalTitle("Module title"),
 
-  description: z.string().trim().optional(),
+  description: z.string().trim().optional().openapi({ example: "Module description" }),
 
   order: optionalNonNegativeNumber("Order"),
 
@@ -91,13 +95,13 @@ export type UpdateModuleInput = z.infer<typeof updateModuleSchema>;
 export const createLessonSchema = z.object({
   title: requiredTitle("Lesson title"),
 
-  description: z.string().trim().optional(),
+  description: z.string().trim().optional().openapi({ example: "Lesson description" }),
 
   order: requiredNonNegativeNumber("Order"),
 
   contentType: z.enum(['video', 'document', 'quiz', 'essay', 'assignment'], {
     error: "Invalid content type",
-  }),
+  }).openapi({ example: "either of video, document, quiz, essay, or assignment" }),
 
   contentLink: urlOrEmpty,
 
@@ -112,13 +116,13 @@ export type CreateLessonInput = z.infer<typeof createLessonSchema>;
 export const updateLessonSchema = z.object({
   title: optionalTitle("Lesson title"),
 
-  description: z.string().trim().optional(),
+  description: z.string().trim().optional().openapi({ example: "Lesson description" }),
 
   order: optionalNonNegativeNumber("Order"),
 
   contentType: z
     .enum(['video', 'document', 'quiz', 'essay', 'assignment'])
-    .optional(),
+    .optional().openapi({ example: "either of video, document, quiz, essay, or assignment" }),
 
   contentLink: urlOrEmpty,
 

@@ -21,7 +21,7 @@ class DatabaseManager {
   // Listens to connection lifecycle events for better observability.
   private registerEventListeners(): void {
     mongoose.connection.on('connected', () => {
-      console.log('🍃 MongoDB connected successfully.');
+      console.log('MongoDB connected successfully.');
     });
 
     mongoose.connection.on('error', (error) => {
