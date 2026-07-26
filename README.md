@@ -12,3 +12,4 @@ Welcome to the backend engine of the Pan-Atlantic Learning Management System. Th
 - *Strict Type Safety & Validation:* Environment variables are strictly parsed and validated at runtime initialization via a fail-fast validator layer.
 
 - *Unified Role-Based Access Control (RBAC):* Manages multiple user tiers (Admins, Supervisors, Instructors, Students) through a consolidated entity profile model coupled with access-guard middlewares.
+
