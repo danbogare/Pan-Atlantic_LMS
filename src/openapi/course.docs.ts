@@ -52,12 +52,13 @@ const LessonSchema = registry.register(
 );
 
 export function registerCourseDocs() {
-  // ---- PUBLIC (any authenticated user) ----
+  // PUBLIC (any authenticated user)
 
   registry.registerPath({
     method: "get",
     path: "/courses",
     tags: ["Courses"],
+    summary: "List all courses",
     security: [{ [bearerAuth.name]: [] }],
     responses: { 200: successEnvelope(z.array(CourseSchema), "List of courses"), ...pick(errorResponses, 401) },
   });
@@ -66,6 +67,7 @@ export function registerCourseDocs() {
     method: "get",
     path: "/courses/{courseId}",
     tags: ["Courses"],
+    summary: "Get course details by course id",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: CourseIdParam },
     responses: { 200: successEnvelope(CourseSchema, "Full course details"), ...pick(errorResponses, 401, 404) },
@@ -75,6 +77,7 @@ export function registerCourseDocs() {
     method: "get",
     path: "/courses/{courseId}/instructors",
     tags: ["Courses"],
+    summary: "Get course instructors by course id",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: CourseIdParam },
     responses: {
@@ -87,6 +90,7 @@ export function registerCourseDocs() {
     method: "get",
     path: "/courses/{courseId}/students",
     tags: ["Courses"],
+    summary: "Get enrolled students by course id",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: CourseIdParam },
     responses: {
@@ -100,6 +104,7 @@ export function registerCourseDocs() {
     path: "/courses/{courseId}/stats",
     tags: ["Courses"],
     security: [{ [bearerAuth.name]: [] }],
+    summary: "Get course stats by course id",
     request: { params: CourseIdParam },
     responses: {
       200: successEnvelope(z.object({ enrolledCount: z.number(), completionRate: z.number() }), "Course statistics"),
@@ -111,6 +116,7 @@ export function registerCourseDocs() {
     method: "get",
     path: "/courses/{courseId}/modules",
     tags: ["Modules"],
+    summary: "Get modules with lessons by course id",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: CourseIdParam },
     responses: {
@@ -123,6 +129,7 @@ export function registerCourseDocs() {
     method: "get",
     path: "/courses/modules/{moduleId}/lessons",
     tags: ["Lessons"],
+    summary: "Get lessons by module id",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: ModuleIdParam },
     responses: { 200: successEnvelope(z.array(LessonSchema), "Lessons for module"), ...pick(errorResponses, 401, 404) },
@@ -134,6 +141,7 @@ export function registerCourseDocs() {
     method: "post",
     path: "/courses/{courseId}/modules",
     tags: ["Modules"],
+    summary: "Create a new module for a course by Admin",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: CourseIdParam, body: { content: { "application/json": { schema: createModuleSchema } } } },
     responses: { 201: successEnvelope(ModuleSchema, "Module created"), ...pick(errorResponses, 400, 401, 403, 404) },
@@ -143,6 +151,7 @@ export function registerCourseDocs() {
     method: "put",
     path: "/courses/modules/{moduleId}",
     tags: ["Modules"],
+    summary: "Update a module by Admin",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: ModuleIdParam, body: { content: { "application/json": { schema: updateModuleSchema } } } },
     responses: { 200: successEnvelope(ModuleSchema, "Module updated"), ...pick(errorResponses, 400, 401, 403, 404) },
@@ -152,6 +161,7 @@ export function registerCourseDocs() {
     method: "put",
     path: "/courses/{courseId}/modules/reorder",
     tags: ["Modules"],
+    summary: "Reorder modules in a course by Admin",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: CourseIdParam, body: { content: { "application/json": { schema: reorderModulesSchema } } } },
     responses: { 200: successEnvelope(z.object({}), "Modules reordered"), ...pick(errorResponses, 400, 401, 403, 404) },
@@ -161,6 +171,7 @@ export function registerCourseDocs() {
     method: "post",
     path: "/courses/modules/{moduleId}/lessons",
     tags: ["Lessons"],
+    summary: "Create a new lesson for a module by Admin",
     security: [{ [bearerAuth.name]: [] }],
     request: {
       params: ModuleIdParam,
@@ -180,6 +191,7 @@ export function registerCourseDocs() {
     method: "put",
     path: "/courses/lessons/{lessonId}",
     tags: ["Lessons"],
+    summary: "Update a lesson by Admin",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: LessonIdParam, body: { content: { "application/json": { schema: updateLessonSchema } } } },
     responses: { 200: successEnvelope(LessonSchema, "Lesson updated"), ...pick(errorResponses, 400, 401, 403, 404) },
@@ -189,6 +201,7 @@ export function registerCourseDocs() {
     method: "delete",
     path: "/courses/lessons/{lessonId}",
     tags: ["Lessons"],
+    summary: "Delete a lesson by Admin",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: LessonIdParam },
     responses: { 200: successEnvelope(z.object({}), "Lesson deleted"), ...pick(errorResponses, 401, 403, 404) },
@@ -198,6 +211,7 @@ export function registerCourseDocs() {
     method: "post",
     path: "/courses/lessons/{lessonId}/content",
     tags: ["Lessons"],
+    summary: "Upload content for a lesson by Admin",
     security: [{ [bearerAuth.name]: [] }],
     request: {
       params: LessonIdParam,
@@ -213,6 +227,7 @@ export function registerCourseDocs() {
     method: "put",
     path: "/courses/modules/{moduleId}/lessons/reorder",
     tags: ["Lessons"],
+    summary: "Reorder lessons in a module by Admin",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: ModuleIdParam, body: { content: { "application/json": { schema: reorderLessonsSchema } } } },
     responses: { 200: successEnvelope(z.object({}), "Lessons reordered"), ...pick(errorResponses, 400, 401, 403, 404) },
@@ -222,6 +237,7 @@ export function registerCourseDocs() {
     method: "post",
     path: "/courses/{courseId}/enroll",
     tags: ["Courses"],
+    summary: "Enroll in a course by Admin",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: CourseIdParam },
     responses: { 200: successEnvelope(z.object({ enrolled: z.boolean() }), "Enrolled"), ...pick(errorResponses, 401, 404, 409) },
@@ -233,6 +249,7 @@ export function registerCourseDocs() {
     method: "post",
     path: "/courses",
     tags: ["Courses"],
+    summary: "Create a new course by Admin",
     security: [{ [bearerAuth.name]: [] }],
     request: {
       body: {
@@ -251,6 +268,7 @@ export function registerCourseDocs() {
     method: "put",
     path: "/courses/{courseId}",
     tags: ["Courses"],
+    summary: "Update a course by Admin",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: CourseIdParam, body: { content: { "application/json": { schema: updateCourseSchema } } } },
     responses: { 200: successEnvelope(CourseSchema, "Course updated"), ...pick(errorResponses, 400, 401, 403, 404) },
@@ -260,6 +278,7 @@ export function registerCourseDocs() {
     method: "delete",
     path: "/courses/{courseId}",
     tags: ["Courses"],
+    summary: "Delete a course by Admin",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: CourseIdParam },
     responses: { 200: successEnvelope(z.object({}), "Course archived"), ...pick(errorResponses, 401, 403, 404) },
@@ -269,6 +288,7 @@ export function registerCourseDocs() {
     method: "patch",
     path: "/courses/{courseId}/publish",
     tags: ["Courses"],
+    summary: "Publish a course by Admin",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: CourseIdParam },
     responses: { 200: successEnvelope(CourseSchema, "Course published"), ...pick(errorResponses, 401, 403, 404) },
@@ -278,6 +298,7 @@ export function registerCourseDocs() {
     method: "delete",
     path: "/courses/modules/{moduleId}",
     tags: ["Modules"],
+    summary: "Delete a module by Admin",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: ModuleIdParam },
     responses: { 200: successEnvelope(z.object({}), "Module deleted"), ...pick(errorResponses, 401, 403, 404) },
