@@ -119,7 +119,7 @@ class App {
 
     this.instance.use("/auth", authRouter.getRouter());
     this.instance.use("/admin", adminRouter.getRouter());
-    this.instance.use("/course", courseRouter.getRouter());
+    this.instance.use("/courses", courseRouter.getRouter());
   }
 
   private initialize404Handling(): void {
