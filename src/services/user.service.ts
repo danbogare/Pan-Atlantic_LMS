@@ -5,7 +5,7 @@ import { IMailService } from "./mail.service";
 import { UserExistsError, CourseNotFoundError } from "../errors/error";
 import { ICryptoService } from "./crypto.service";
 import { Types } from "mongoose";
-import { InviteInstructorPayload, EnrollStudentPayload } from "../interfaces/user.interface";
+import { InviteInstructorPayload, EnrollStudentPayload, IStudentWithCourses, IInstructorWithCourses } from "../interfaces/user.interface";
 
 export interface IUserService {
   // Student methods
@@ -18,6 +18,8 @@ export interface IUserService {
   getAllInstructors(): Promise<any[]>;
   getAllStudents(): Promise<any[]>;
   getUsersByRole(role: UserRole): Promise<IUser[]>;
+  getStudentByIdWithCourses(id: string): Promise<IStudentWithCourses | null>;
+  getInstructorByIdWithCourses(id: string): Promise<IInstructorWithCourses | null>;
 }
 
 export class UserService implements IUserService {
@@ -112,6 +114,14 @@ export class UserService implements IUserService {
   
   public async getUsersByRole(role: UserRole): Promise<IUser[]> {
     return await this.userRepository.getUsersByRole(role);
+  }
+
+  public async getStudentByIdWithCourses(id: string): Promise<IStudentWithCourses | null> {
+    return await this.userRepository.getStudentByIdWithCourses(id);
+  }
+
+  public async getInstructorByIdWithCourses(id: string): Promise<IInstructorWithCourses | null> {
+    return await this.userRepository.getInstructorByIdWithCourses(id);
   }
 
   // Private helper methods

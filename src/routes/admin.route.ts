@@ -23,5 +23,9 @@ export class AdminRouter {
         this.router.use(asyncHandler(this.authMiddleware.requireAdmin));
         this.router.post("/student/enroll", validate(enrollStudentSchema), asyncHandler(this.userController.enrollStudent));
         this.router.post("/instructor/invite", validate(enrollStudentSchema), asyncHandler(this.userController.inviteInstructor));
+        this.router.get("/students", asyncHandler(this.userController.getAllStudents));
+        this.router.get("/students/:studentId", asyncHandler(this.userController.getStudentById));
+        this.router.get("/instructors", asyncHandler(this.userController.getAllInstructors));
+        this.router.get("/instructors/:instructorId", asyncHandler(this.userController.getInstructorById));
     }
 }
