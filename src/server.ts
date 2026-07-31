@@ -4,6 +4,7 @@ import { dbManager } from "./config/database";
 import { seedAdmin } from "./seeders/admin.seeder";
 import { User } from "./models/user.model";
 import { UserRepository } from "./repositories/user.repository";
+import { Enrollment, InstructorAssignment } from "./models/course.model";
 
 async function bootstrap() {
   try {
@@ -11,7 +12,7 @@ async function bootstrap() {
     await dbManager.connect();
 
     // Seed default admin account (idempotent — safe to run every boot)
-    const userRepository = new UserRepository(User);
+    const userRepository = new UserRepository(User, Enrollment, InstructorAssignment);
     await seedAdmin(userRepository, env.admin);
 
     // Initialize app (Express setup only)
