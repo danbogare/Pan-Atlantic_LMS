@@ -88,7 +88,7 @@ class App {
   private initializeApiRoutes(): void {
     // Dependencies Injection
     // repositories
-    const userRepository = new UserRepository(User);
+    const userRepository = new UserRepository(User, Enrollment, InstructorAssignment);
     const otpRepository = new OtpRepository(Otp);
     const courseRepository = new CourseRepository(Course, Enrollment, InstructorAssignment);
     const courseContentRepository = new CourseContentRepository(CourseModule, CourseLesson);
