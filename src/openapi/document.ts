@@ -5,6 +5,13 @@ import { registry } from "./registry";
 import { registerCourseDocs } from "./course.docs";
 import { registerAuthDocs } from "./auth.docs";
 import { registerAdminDocs } from "./admin.docs";
+import { registerBadgeDocs } from "./badge.docs";
+import { registerCertificateDocs } from "./certificate.docs";
+import { registerDiscussionDocs } from "./discussion.docs";
+import { registerNoteDocs } from "./note.docs";
+import { registerStatsDocs } from "./stats.docs";
+import { registerAssignmentDocs } from "./assignment.docs";
+import { registerProgressDocs } from "./progress.docs";
 
 let cached: OpenAPIObject | null = null;
 
@@ -14,6 +21,13 @@ export function getOpenApiDocument(): OpenAPIObject {
   registerAuthDocs();
   registerCourseDocs();
   registerAdminDocs();
+  registerStatsDocs();
+  registerAssignmentDocs();
+  registerDiscussionDocs();
+  registerNoteDocs();
+  registerCertificateDocs();
+  registerBadgeDocs();
+  registerProgressDocs();
 
   const generator = new OpenApiGeneratorV31(registry.definitions);
 

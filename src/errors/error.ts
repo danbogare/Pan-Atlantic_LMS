@@ -71,3 +71,40 @@ export class ForbiddenError extends AppError {
     super(403, message);
   }
 }
+
+export class NoteNotFoundError extends AppError { 
+  constructor(message: string) {
+    super(404, message);
+  }
+}
+export class DiscussionNotFoundError extends AppError {
+  constructor(message: string) {
+    super(404, message);
+  }
+}
+export class LessonNotFoundError extends AppError {
+  constructor(message: string) {
+    super(404, message);
+  }
+}
+export class SubmissionNotFoundError extends AppError {
+  constructor(message: string) {
+    super(404, message);
+  }
+}
+export class CertificateNotFoundError extends AppError {
+  constructor(message: string) {
+    super(404, message);
+  }
+}
+
+export class BadgeNotFoundError extends AppError {
+  constructor(message: string) {
+    super(404, message);
+  }
+}
+export class InvalidAssignmentLessonError extends AppError {
+  constructor(message: string) {
+    super(404, message);
+  }
+}

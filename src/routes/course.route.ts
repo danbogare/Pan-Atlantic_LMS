@@ -1,4 +1,3 @@
-// routes/course.routes.ts
 import { Router } from "express";
 import { ICourseController } from "../controllers/course.controller";
 import { IAuthMiddleware } from "../middlewares/auth.middleware";

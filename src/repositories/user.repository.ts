@@ -83,9 +83,8 @@ export class UserRepository implements IUserRepository {
   }
 
   public async getStudentByIdWithCourses(id: string): Promise<IStudentWithCourses | null> {
-    const student = await this.UserModel.findById(id).exec();
+    const student = await this.UserModel.findById(id).select('-passwordHash').exec();
     if (!student) return null;
-    student?.deleteOne({ passwordHash: 1 }); // Remove passwordHash from response
 
     const courses = await this.EnrollmentModel.find({ student: id }).populate('course').lean().exec();
 
@@ -93,9 +92,8 @@ export class UserRepository implements IUserRepository {
   }
 
   public async getInstructorByIdWithCourses(id: string): Promise<IInstructorWithCourses | null> {
-    const instructor = await this.UserModel.findById(id).exec();
+    const instructor = await this.UserModel.findById(id).select('-passwordHash').exec();
     if (!instructor) return null;
-    instructor?.deleteOne({ passwordHash: 1 }); // Remove passwordHash from response
 
     const courses = await this.InstructorAssignmentModel.find({ instructor: id }).populate('course').lean().exec();
 

@@ -27,6 +27,39 @@ import { CourseController } from "./controllers/course.controller";
 import { CourseRouter } from "./routes/course.route";
 import { getOpenApiDocument } from "./openapi/document";
 import { apiReference } from "@scalar/express-api-reference";
+import { NoteRepository } from "./repositories/note.repository";
+import { DiscussionRepository } from "./repositories/discussion.repository";
+import { Note } from "./models/note.model";
+import { Discussion, DiscussionReply } from "./models/discussion.model";
+import { AssignmentSubmissionRepository } from "./repositories/assignment.repository";
+import { AssignmentSubmission } from "./models/assignment.model";
+import { CertificateRepository } from "./repositories/certificate.repository";
+import { Certificate } from "./models/certificate.model";
+import { BadgeRepository } from "./repositories/badge.repository";
+import { Badge, UserBadge } from "./models/badge.model";
+import { LessonProgressRepository } from "./repositories/lessonProgress.repository";
+import { LessonProgress } from "./models/lessonProgress.model";
+import { StatsRepository } from "./repositories/stats.repository";
+import { NoteService } from "./services/note.service";
+import { DiscussionService } from "./services/discussion.service";
+import { AssignmentSubmissionService } from "./services/assignment.service";
+import { CertificateService } from "./services/certificate.service";
+import { BadgeService } from "./services/badge.service";
+import { ProgressService } from "./services/lessonProgress.service";
+import { StatsService } from "./services/stats.service";
+import { NoteController } from "./controllers/note.controller";
+import { DiscussionController } from "./controllers/discussion.controller";
+import { AssignmentSubmissionController } from "./controllers/assignment.controller";
+import { CertificateController } from "./controllers/certificate.controller";
+import { BadgeController } from "./controllers/badge.controller";
+import { ProgressController } from "./controllers/progress.controller";
+import { StatsController } from "./controllers/stats.controller";
+import { NoteRouter } from "./routes/note.route";
+import { DiscussionRouter } from "./routes/discussion.route";
+import { AssignmentRouter } from "./routes/assignment.route";
+import { CertificateRouter } from "./routes/certificate.route";
+import { BadgeRouter } from "./routes/badge.route";
+import { ProgressRouter } from "./routes/progress.route";
 
 class App {
   public readonly instance: Application;
@@ -92,6 +125,13 @@ class App {
     const otpRepository = new OtpRepository(Otp);
     const courseRepository = new CourseRepository(Course, Enrollment, InstructorAssignment);
     const courseContentRepository = new CourseContentRepository(CourseModule, CourseLesson);
+    const noteRepository = new NoteRepository(Note);
+    const discussionRepository = new DiscussionRepository(Discussion, DiscussionReply);
+    const submissionRepository = new AssignmentSubmissionRepository(AssignmentSubmission, CourseLesson, Enrollment);
+    const certificateRepository = new CertificateRepository(Certificate);
+    const badgeRepository = new BadgeRepository(Badge, UserBadge);
+    const lessonProgressRepository = new LessonProgressRepository(LessonProgress, CourseLesson);
+    const statsRepository = new StatsRepository(User, Course, Enrollment);
 
     // services
     const cryptoService = new CryptoService(env.jwtSecret);
@@ -103,6 +143,13 @@ class App {
     const userService = new UserService(userRepository, courseRepository, mailService, cryptoService);
     const storageService = new CloudinaryService(env.cloudinary);
     const courseService = new CourseService(courseRepository, courseContentRepository, storageService);
+    const noteService = new NoteService(noteRepository, courseRepository);
+    const discussionService = new DiscussionService(discussionRepository, courseRepository);
+    const submissionService = new AssignmentSubmissionService(submissionRepository, courseContentRepository);
+    const certificateService = new CertificateService(certificateRepository);
+    const badgeService = new BadgeService(badgeRepository, userRepository, courseRepository);
+    const progressService = new ProgressService(lessonProgressRepository, courseRepository, certificateService, badgeService);
+    const statsService = new StatsService(statsRepository);
 
     // middlware
     const authMiddleware = new AuthMiddleware(cryptoService);
@@ -111,15 +158,41 @@ class App {
     const authController = new AuthController(authService);
     const userController = new UserController(userService);
     const courseController = new CourseController(courseService);
+    const noteController = new NoteController(noteService);
+    const discussionController = new DiscussionController(discussionService);
+    const submissionController = new AssignmentSubmissionController(submissionService);
+    const certificateController = new CertificateController(certificateService); // now needs courseRepository passed to certificateService below
+    const badgeController = new BadgeController(badgeService);
+    const progressController = new ProgressController(progressService);
+    const statsController = new StatsController(statsService);
 
     // routes
     const authRouter = new AuthRouter(authController, authMiddleware);
-    const adminRouter = new AdminRouter(userController, authMiddleware);
+    const adminRouter = new AdminRouter(
+      userController,
+      badgeController,
+      statsController,
+      submissionController,
+      authMiddleware
+    );
     const courseRouter = new CourseRouter(courseController, authMiddleware);
+    const noteRouter = new NoteRouter(noteController, authMiddleware);
+    const discussionRouter = new DiscussionRouter(discussionController, authMiddleware);
+    const assignmentRouter = new AssignmentRouter(submissionController, authMiddleware);
+    const certificateRouter = new CertificateRouter(certificateController, authMiddleware);
+    const badgeRouter = new BadgeRouter(badgeController, authMiddleware);
+    const progressRouter = new ProgressRouter(progressController, authMiddleware);
 
     this.instance.use("/auth", authRouter.getRouter());
     this.instance.use("/admin", adminRouter.getRouter());
     this.instance.use("/courses", courseRouter.getRouter());
+    this.instance.use("/student/notes", noteRouter.getRouter());
+    this.instance.use("/courses", discussionRouter.getRouter());
+    this.instance.use("/student/assignments", assignmentRouter.getRouter());
+    this.instance.use("/student/certificates", certificateRouter.getRouter());
+    this.instance.use("/certificates", certificateRouter.getRouter());
+    this.instance.use("/student/badges", badgeRouter.getRouter());
+    this.instance.use("/student/progress", progressRouter.getRouter());
   }
 
   private initialize404Handling(): void {

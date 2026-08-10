@@ -38,6 +38,8 @@ export interface ICourseRepository {
   getPublishedCoursesWithDetails(): Promise<any[]>;
   isStudentEnrolled(studentId: string, courseId: string): Promise<boolean>;
   isInstructorAssigned(instructorId: string, courseId: string): Promise<boolean>;
+
+  updateEnrollmentProgress(enrollmentId: string, progress: number): Promise<IEnrollment | null>
 }
 
 export class CourseRepository implements ICourseRepository {
@@ -359,5 +361,11 @@ export class CourseRepository implements ICourseRepository {
       status: AssignmentStatus.ACTIVE
     });
     return !!assignment;
+  }
+
+  public async updateEnrollmentProgress(enrollmentId: string, progress: number): Promise<IEnrollment | null> {
+    return await this.enrollmentModel
+      .findByIdAndUpdate(enrollmentId, { progress }, { new: true })
+      .exec();
   }
 }
