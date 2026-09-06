@@ -19,6 +19,12 @@ export class CourseNotFoundError extends AppError {
   }
 }
 
+export class NotificationNotFoundError extends AppError {
+  constructor(message: string) {
+    super(404, message);
+  }
+}
+
 export class UserExistsError extends AppError {
   constructor() {
     super(409, "User already exists");

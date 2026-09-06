@@ -20,6 +20,8 @@ export interface IUserService {
   getUsersByRole(role: UserRole): Promise<IUser[]>;
   getStudentByIdWithCourses(id: string): Promise<IStudentWithCourses | null>;
   getInstructorByIdWithCourses(id: string): Promise<IInstructorWithCourses | null>;
+
+  updateUserInfo(id: string, firstName: string, lastName: string): Promise<IUser | null>;
 }
 
 export class UserService implements IUserService {
@@ -122,6 +124,10 @@ export class UserService implements IUserService {
 
   public async getInstructorByIdWithCourses(id: string): Promise<IInstructorWithCourses | null> {
     return await this.userRepository.getInstructorByIdWithCourses(id);
+  }
+
+  public async updateUserInfo(id: string, firstName: string, lastName: string): Promise<IUser | null> {
+    return await this.userRepository.updateUserInfo(id, firstName, lastName);
   }
 
   // Private helper methods

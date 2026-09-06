@@ -60,6 +60,11 @@ import { AssignmentRouter } from "./routes/assignment.route";
 import { CertificateRouter } from "./routes/certificate.route";
 import { BadgeRouter } from "./routes/badge.route";
 import { ProgressRouter } from "./routes/progress.route";
+import { NotificationRepository } from "./repositories/notification.repository";
+import { Notification } from "./models/notification.model";
+import { NotificationService } from "./services/notification.service";
+import { NotificationController } from "./controllers/notification.controller";
+import { NotificationRouter } from "./routes/notification.routes";
 
 class App {
   public readonly instance: Application;
@@ -132,6 +137,7 @@ class App {
     const badgeRepository = new BadgeRepository(Badge, UserBadge);
     const lessonProgressRepository = new LessonProgressRepository(LessonProgress, CourseLesson);
     const statsRepository = new StatsRepository(User, Course, Enrollment);
+    const notificationRepository = new NotificationRepository(Notification);
 
     // services
     const cryptoService = new CryptoService(env.jwtSecret);
@@ -150,6 +156,7 @@ class App {
     const badgeService = new BadgeService(badgeRepository, userRepository, courseRepository);
     const progressService = new ProgressService(lessonProgressRepository, courseRepository, certificateService, badgeService);
     const statsService = new StatsService(statsRepository);
+    const notificationService = new NotificationService(notificationRepository, userRepository);
 
     // middlware
     const authMiddleware = new AuthMiddleware(cryptoService);
@@ -165,6 +172,7 @@ class App {
     const badgeController = new BadgeController(badgeService);
     const progressController = new ProgressController(progressService);
     const statsController = new StatsController(statsService);
+    const notificationController = new NotificationController(notificationService);
 
     // routes
     const authRouter = new AuthRouter(authController, authMiddleware);
@@ -173,6 +181,7 @@ class App {
       badgeController,
       statsController,
       submissionController,
+      notificationController,
       authMiddleware
     );
     const courseRouter = new CourseRouter(courseController, authMiddleware);
@@ -182,6 +191,7 @@ class App {
     const certificateRouter = new CertificateRouter(certificateController, authMiddleware);
     const badgeRouter = new BadgeRouter(badgeController, authMiddleware);
     const progressRouter = new ProgressRouter(progressController, authMiddleware);
+    const notificationRouter = new NotificationRouter(notificationController, authMiddleware);
 
     this.instance.use("/auth", authRouter.getRouter());
     this.instance.use("/admin", adminRouter.getRouter());
@@ -193,6 +203,7 @@ class App {
     this.instance.use("/certificates", certificateRouter.getRouter());
     this.instance.use("/student/badges", badgeRouter.getRouter());
     this.instance.use("/student/progress", progressRouter.getRouter());
+    this.instance.use("/notifications", notificationRouter.getRouter());
   }
 
   private initialize404Handling(): void {

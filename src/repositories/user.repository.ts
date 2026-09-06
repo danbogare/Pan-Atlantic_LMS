@@ -12,9 +12,12 @@ export interface IUserRepository {
   create(userData: Partial<IUser>): Promise<IUser>;
   updateStreak(id: string, newStreak: number): Promise<IUser | null>;
   updatePassword(id: string, newPasswordHash: string): Promise<void>;
+  updateUserInfo(id: string, firstname: string, lastname: string): Promise<IUser | null>
   changePassword(id: string, newPasswordHash: string): Promise<void>;
   getStudentByIdWithCourses(id: string): Promise<IStudentWithCourses | null>;
   getInstructorByIdWithCourses(id: string): Promise<IInstructorWithCourses | null>;
+  findIdsByRole(role: UserRole): Promise<string[]>;
+  findAllIds(): Promise<string[]>;
 }
 
 export class UserRepository implements IUserRepository {
@@ -67,6 +70,14 @@ export class UserRepository implements IUserRepository {
       { new: true }
     ).exec();
   }
+  
+  public async updateUserInfo(id: string, firstname: string, lastname: string): Promise<IUser | null> {
+    return await this.UserModel.findByIdAndUpdate(
+      id,
+      { $set: { firstName: firstname, lastName: lastname } },
+      { new: true }
+    ).exec();
+  }
 
   public async updatePassword(id: string, newPasswordHash: string): Promise<void> {
     await this.UserModel.findByIdAndUpdate(
@@ -98,5 +109,15 @@ export class UserRepository implements IUserRepository {
     const courses = await this.InstructorAssignmentModel.find({ instructor: id }).populate('course').lean().exec();
 
     return { instructor, courses };
+  }
+
+  public async findIdsByRole(role: UserRole): Promise<string[]> {
+    const users = await this.UserModel.find({ role }).select('_id').exec();
+    return users.map((u) => u._id.toString());
+  }
+
+  public async findAllIds(): Promise<string[]> {
+    const users = await this.UserModel.find().select('_id').exec();
+    return users.map((u) => u._id.toString());
   }
 }

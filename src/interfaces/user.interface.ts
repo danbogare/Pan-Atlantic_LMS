@@ -23,3 +23,8 @@ export interface IInstructorWithCourses {
   instructor : IUser;
   courses: any[];
 }
+
+export interface UpdateUserInviteInfo {
+  firstName: string;
+  lastName: string;
+}
