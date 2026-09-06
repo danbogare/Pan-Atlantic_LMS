@@ -94,7 +94,7 @@ export function registerAdminDocs() {
       method: "post",
       // GUESS — assumed mount prefix "/notifications" from the NotificationRouter naming.
       // Confirm the actual app.use("/notifications", ...) prefix in your app bootstrap.
-      path: "/notifications",
+      path: "/admin/notifications",
       tags: ["Notifications"],
       security: [{ [bearerAuth.name]: [] }],
       request: { body: { content: { "application/json": { schema: createNotificationSchema } } } },
@@ -106,7 +106,7 @@ export function registerAdminDocs() {
   
     registry.registerPath({
       method: "post",
-      path: "/notifications/broadcast",
+      path: "/admin/notifications/broadcast",
       tags: ["Notifications"],
       security: [{ [bearerAuth.name]: [] }],
       // Admin-only — targetRole omitted in the body means "broadcast to every user".
