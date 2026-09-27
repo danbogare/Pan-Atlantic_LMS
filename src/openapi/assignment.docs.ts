@@ -64,7 +64,7 @@ export function registerAssignmentDocs() {
 
   registry.registerPath({
     method: "put",
-    path: "/admin/assignments/submissions/{submissionId}/grade",
+    path: "/instructor/assignments/submissions/{submissionId}/grade",
     tags: ["Assignments"],
     summary: "Grade a submission (instructor/admin)",
     security: [{ [bearerAuth.name]: [] }],

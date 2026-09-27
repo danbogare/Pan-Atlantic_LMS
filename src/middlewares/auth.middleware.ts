@@ -23,6 +23,11 @@ export interface IAuthMiddleware {
     res: Response,
     next: NextFunction
   ) => Promise<void>;
+  requireInstructor: (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => Promise<void>;
 }
 
 export class AuthMiddleware implements IAuthMiddleware {
@@ -62,6 +67,19 @@ export class AuthMiddleware implements IAuthMiddleware {
     next: NextFunction
   ): Promise<void> => {
     if (req.user?.role !== UserRole.ADMIN) {
+      throw new UnauthorizedError();
+    }
+
+    next();
+  };
+  
+  public requireInstructor = async (
+    req: Request,
+    _res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    const allowedRoles = [UserRole.INSTRUCTOR, UserRole.ADMIN];
+    if (!req.user?.role || !allowedRoles.includes(req.user.role)) {
       throw new UnauthorizedError();
     }
 

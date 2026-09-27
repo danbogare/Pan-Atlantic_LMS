@@ -51,8 +51,8 @@ export function registerBadgeDocs() {
 
   registry.registerPath({
     method: "post",
-    path: "/admin/badges",
-    tags: ["Admin", "Badges"],
+    path: "/instructor/badges",
+    tags: ["Admin", "Instructor", "Badges"],
     summary: "Create a badge",
     security: [{ [bearerAuth.name]: [] }],
     request: { body: { content: { "application/json": { schema: createBadgeSchema } } } },
@@ -61,8 +61,8 @@ export function registerBadgeDocs() {
 
   registry.registerPath({
     method: "put",
-    path: "/admin/badges/{id}",
-    tags: ["Admin", "Badges"],
+    path: "/instructor/badges/{id}",
+    tags: ["Admin", "Instructor", "Badges"],
     summary: "Update a badge",
     security: [{ [bearerAuth.name]: [] }],
     request: {
@@ -74,8 +74,8 @@ export function registerBadgeDocs() {
 
   registry.registerPath({
     method: "delete",
-    path: "/admin/badges/{id}",
-    tags: ["Admin", "Badges"],
+    path: "/instructor/badges/{id}",
+    tags: ["Admin", "Instructor", "Badges"],
     summary: "Deactivate a badge",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: z.object({ id: z.string() }) },

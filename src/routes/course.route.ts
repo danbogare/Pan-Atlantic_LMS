@@ -14,13 +14,16 @@ import {
   reorderLessonsSchema
 } from "../validators/course.validator";
 import { uploadThumbnail, uploadLessonFile } from "../middlewares/upload.middleware";
+import { IDiscussionController } from "../controllers/discussion.controller";
+import { createDiscussionSchema, createReplySchema } from "../validators/discussion.validator";
 
 export class CourseRouter {
   private readonly router = Router();
 
   constructor(
     private readonly courseController: ICourseController,
-    private readonly authMiddleware: IAuthMiddleware
+    private readonly authMiddleware: IAuthMiddleware,
+    private readonly discussionController: IDiscussionController,
   ) {
     this.initializeRoutes();
   }
@@ -55,6 +58,26 @@ export class CourseRouter {
 
     // Get module lessons
     this.router.get("/modules/:moduleId/lessons", asyncHandler(this.courseController.getModuleLessons));
+
+    // Discussions
+    this.router.get("/:courseId/discussions", asyncHandler(this.discussionController.getCourseDiscussions));
+
+    this.router.get(
+      "/:courseId/discussions/:discussionId",
+      asyncHandler(this.discussionController.getDiscussionById)
+    );
+
+    this.router.post(
+      "/:courseId/discussions",
+      validate(createDiscussionSchema),
+      asyncHandler(this.discussionController.createDiscussion)
+    );
+
+    this.router.post(
+      "/:courseId/discussions/:discussionId/replies",
+      validate(createReplySchema),
+      asyncHandler(this.discussionController.addReply)
+    );
 
     // ADMIN & INSTRUCTOR ROUTES
     this.router.use(asyncHandler(this.authMiddleware.requireAdmin));

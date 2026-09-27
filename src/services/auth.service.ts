@@ -61,7 +61,7 @@ export class AuthService implements IAuthService {
     const authData: IAuthUser = {
       user: userObj as unknown as IUser,
       accessToken,
-    };
+    };    
 
     return authData;
   }

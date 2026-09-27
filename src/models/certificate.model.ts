@@ -29,6 +29,5 @@ const CertificateSchema = new Schema<ICertificate>(
 
 // One certificate per student per course — prevents duplicate issuance
 CertificateSchema.index({ student: 1, course: 1 }, { unique: true });
-CertificateSchema.index({ certificateNumber: 1 }, { unique: true });
 
 export const Certificate = model<ICertificate>('Certificate', CertificateSchema);

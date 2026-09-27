@@ -55,7 +55,6 @@ import { BadgeController } from "./controllers/badge.controller";
 import { ProgressController } from "./controllers/progress.controller";
 import { StatsController } from "./controllers/stats.controller";
 import { NoteRouter } from "./routes/note.route";
-import { DiscussionRouter } from "./routes/discussion.route";
 import { AssignmentRouter } from "./routes/assignment.route";
 import { CertificateRouter } from "./routes/certificate.route";
 import { BadgeRouter } from "./routes/badge.route";
@@ -65,6 +64,13 @@ import { Notification } from "./models/notification.model";
 import { NotificationService } from "./services/notification.service";
 import { NotificationController } from "./controllers/notification.controller";
 import { NotificationRouter } from "./routes/notification.routes";
+import { QuizAttemptRepository, QuizRepository } from "./repositories/quiz.repository";
+import { Quiz } from "./models/quiz.model";
+import { QuizAttempt } from "./models/quizAttempt.model";
+import { QuizService } from "./services/quiz.service";
+import { QuizController } from "./controllers/quiz.controller";
+import { QuizRouter } from "./routes/quiz.route";
+import { InstructorRouter } from "./routes/instructor.route";
 
 class App {
   public readonly instance: Application;
@@ -136,8 +142,10 @@ class App {
     const certificateRepository = new CertificateRepository(Certificate);
     const badgeRepository = new BadgeRepository(Badge, UserBadge);
     const lessonProgressRepository = new LessonProgressRepository(LessonProgress, CourseLesson);
-    const statsRepository = new StatsRepository(User, Course, Enrollment);
+    const statsRepository = new StatsRepository(User, Course, Enrollment, InstructorAssignment, Discussion);
     const notificationRepository = new NotificationRepository(Notification);
+    const quizRepository = new QuizRepository(Quiz);
+    const quizAttemptRepository = new QuizAttemptRepository(QuizAttempt);
 
     // services
     const cryptoService = new CryptoService(env.jwtSecret);
@@ -157,6 +165,7 @@ class App {
     const progressService = new ProgressService(lessonProgressRepository, courseRepository, certificateService, badgeService);
     const statsService = new StatsService(statsRepository);
     const notificationService = new NotificationService(notificationRepository, userRepository);
+    const quizService = new QuizService(quizRepository, quizAttemptRepository, courseContentRepository);
 
     // middlware
     const authMiddleware = new AuthMiddleware(cryptoService);
@@ -173,37 +182,44 @@ class App {
     const progressController = new ProgressController(progressService);
     const statsController = new StatsController(statsService);
     const notificationController = new NotificationController(notificationService);
+    const quizController = new QuizController(quizService);
 
     // routes
     const authRouter = new AuthRouter(authController, authMiddleware);
     const adminRouter = new AdminRouter(
       userController,
-      badgeController,
       statsController,
-      submissionController,
       notificationController,
       authMiddleware
     );
-    const courseRouter = new CourseRouter(courseController, authMiddleware);
+    const instructorRouter = new InstructorRouter(
+      authMiddleware,
+      statsController,
+      badgeController,
+      quizController,
+      submissionController
+    );
+    const courseRouter = new CourseRouter(courseController, authMiddleware, discussionController);
     const noteRouter = new NoteRouter(noteController, authMiddleware);
-    const discussionRouter = new DiscussionRouter(discussionController, authMiddleware);
     const assignmentRouter = new AssignmentRouter(submissionController, authMiddleware);
     const certificateRouter = new CertificateRouter(certificateController, authMiddleware);
     const badgeRouter = new BadgeRouter(badgeController, authMiddleware);
     const progressRouter = new ProgressRouter(progressController, authMiddleware);
     const notificationRouter = new NotificationRouter(notificationController, authMiddleware);
+    const quizRouter = new QuizRouter(quizController, authMiddleware);
 
     this.instance.use("/auth", authRouter.getRouter());
     this.instance.use("/admin", adminRouter.getRouter());
     this.instance.use("/courses", courseRouter.getRouter());
     this.instance.use("/student/notes", noteRouter.getRouter());
-    this.instance.use("/courses", discussionRouter.getRouter());
     this.instance.use("/student/assignments", assignmentRouter.getRouter());
     this.instance.use("/student/certificates", certificateRouter.getRouter());
     this.instance.use("/certificates", certificateRouter.getRouter());
     this.instance.use("/student/badges", badgeRouter.getRouter());
     this.instance.use("/student/progress", progressRouter.getRouter());
     this.instance.use("/notifications", notificationRouter.getRouter());
+    this.instance.use("/student/quizzes", quizRouter.getRouter());
+    this.instance.use("/instructor", instructorRouter.getRouter());
   }
 
   private initialize404Handling(): void {

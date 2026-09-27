@@ -114,3 +114,34 @@ export class InvalidAssignmentLessonError extends AppError {
     super(404, message);
   }
 }
+
+export class QuizNotFoundError extends AppError { 
+   constructor(message: string) {
+    super(404, message);
+  }
+ }
+export class InvalidQuizLessonError extends AppError {
+   constructor(message: string) {
+    super(400, message);
+  }
+ }
+export class AttemptNotFoundError extends AppError {
+   constructor(message: string) {
+    super(404, message);
+  }
+ }
+export class AttemptAlreadyInProgressError extends AppError { 
+   constructor(message: string) {
+    super(400, message);
+  }
+}
+export class AttemptAlreadySubmittedError extends AppError { 
+   constructor(message: string) {
+    super(400, message);
+  }
+}
+export class InvalidAnswerFormatError extends AppError { 
+   constructor(message: string) {
+    super(400, message);
+  }
+}

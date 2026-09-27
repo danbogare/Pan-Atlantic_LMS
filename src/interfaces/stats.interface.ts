@@ -9,3 +9,29 @@ export interface PlatformStats {
   };
   progress: { averageCompletionRate: number };
 }
+
+export interface InstructorOverview {
+  totalCourses: number;
+  totalStudents: number;
+  activeStudents: number;
+  averageProgress: number;
+}
+
+export interface InstructorQuestionStats {
+  pending: number;
+  answered: number;
+  responseRate: number; // percentage
+}
+
+export interface InstructorCourseProgress {
+  courseId: string;
+  title: string;
+  enrolled: number;
+  averageCompletion: number;
+}
+
+export interface InstructorStats {
+  overview: InstructorOverview;
+  questions: InstructorQuestionStats;
+  courseProgress: InstructorCourseProgress[];
+}

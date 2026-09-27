@@ -25,7 +25,7 @@ const EmptyDataSchema = z.object({}).openapi({ example: {} });
 export function registerAuthDocs() {
   registry.registerPath({
     method: "post",
-    path: "/login",
+    path: "/auth/login",
     tags: ["Auth"],
     request: { body: { content: { "application/json": { schema: loginSchema } } } },
     responses: {
@@ -36,7 +36,7 @@ export function registerAuthDocs() {
 
   registry.registerPath({
     method: "post",
-    path: "/password/reset",
+    path: "/auth/password/reset",
     tags: ["Auth"],
     request: { body: { content: { "application/json": { schema: forgotPasswordSchema } } } },
     responses: {
@@ -47,7 +47,7 @@ export function registerAuthDocs() {
 
   registry.registerPath({
     method: "put",
-    path: "/password/reset",
+    path: "/auth/password/reset",
     tags: ["Auth"],
     request: { body: { content: { "application/json": { schema: resetPasswordSchema } } } },
     responses: {
@@ -58,7 +58,7 @@ export function registerAuthDocs() {
 
   registry.registerPath({
     method: "post",
-    path: "/password/change",
+    path: "/auth/password/change",
     tags: ["Auth"],
     security: [{ [bearerAuth.name]: [] }],
     request: { body: { content: { "application/json": { schema: changePasswordSchema } } } },

@@ -12,6 +12,7 @@ import { registerNoteDocs } from "./note.docs";
 import { registerStatsDocs } from "./stats.docs";
 import { registerAssignmentDocs } from "./assignment.docs";
 import { registerProgressDocs } from "./progress.docs";
+import { registerQuizDocs } from "./quiz.docs";
 
 let cached: OpenAPIObject | null = null;
 
@@ -28,6 +29,7 @@ export function getOpenApiDocument(): OpenAPIObject {
   registerCertificateDocs();
   registerBadgeDocs();
   registerProgressDocs();
+  registerQuizDocs();
 
   const generator = new OpenApiGeneratorV31(registry.definitions);
 

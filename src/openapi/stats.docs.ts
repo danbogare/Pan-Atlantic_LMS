@@ -32,4 +32,13 @@ export function registerStatsDocs() {
     security: [{ [bearerAuth.name]: [] }],
     responses: { 200: successEnvelope(StatsSchema, "Stats retrieved successfully"), ...pick(errorResponses, 401, 403) },
   });
+  
+  registry.registerPath({
+    method: "get",
+    path: "/instructor/stats",
+    tags: ["Stats"],
+    summary: "Get instructor stats",
+    security: [{ [bearerAuth.name]: [] }],
+    responses: { 200: successEnvelope(StatsSchema, "Stats retrieved successfully"), ...pick(errorResponses, 401, 403) },
+  });
 }

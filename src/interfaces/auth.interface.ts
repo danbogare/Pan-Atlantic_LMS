@@ -1,9 +1,9 @@
-import { IUser } from "../models/user.model";
+import { IUser, UserRole } from "../models/user.model";
 
 export interface IAuthUserPayload {
   id: string;
   email: string;
-  role: string;
+  role: UserRole;
 }
 
 export interface IAuthUser {
