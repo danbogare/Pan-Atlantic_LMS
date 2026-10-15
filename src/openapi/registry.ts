@@ -61,7 +61,8 @@ export const errorResponses = {
   401: jsonContent(ErrorResponseSchema, "Not authenticated"),
   403: jsonContent(
     ErrorResponseSchema,
-    "Forbidden: wrong role, account deactivated, temporary password not yet changed (code PASSWORD_CHANGE_REQUIRED), " +
+    "Forbidden: wrong role, account deactivated, email not verified (code EMAIL_NOT_VERIFIED), " +
+      "temporary password not yet changed (code PASSWORD_CHANGE_REQUIRED), " +
       "not enrolled/assigned to the course (code COURSE_ACCESS_DENIED), or course access expired (code COURSE_ACCESS_EXPIRED)"
   ),
   404: jsonContent(ErrorResponseSchema, "Not found"),

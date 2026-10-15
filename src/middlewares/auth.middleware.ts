@@ -4,6 +4,7 @@ import {
   ForbiddenError,
   AccountDisabledError,
   PasswordChangeRequiredError,
+  EmailNotVerifiedError,
 } from "../errors/error";
 import { IAuthUserPayload, IUserAuthState } from "../interfaces/auth.interface";
 import { ICryptoService } from "../services/crypto.service";
@@ -120,6 +121,11 @@ export class AuthMiddleware implements IAuthMiddleware {
 
     if (!user.isActive) {
       throw new AccountDisabledError();
+    }
+
+    // Unverified accounts are never issued tokens; this guards against any that slip through
+    if (user.emailVerified === false) {
+      throw new EmailNotVerifiedError();
     }
 
     req.user = {

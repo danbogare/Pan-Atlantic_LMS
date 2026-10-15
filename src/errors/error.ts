@@ -86,6 +86,18 @@ export class PasswordChangeRequiredError extends AppError {
   }
 }
 
+export class EmailNotVerifiedError extends AppError {
+  constructor() {
+    super(403, "Please verify your email address to continue.", "EMAIL_NOT_VERIFIED");
+  }
+}
+
+export class TooManyRequestsError extends AppError {
+  constructor(message: string) {
+    super(429, message);
+  }
+}
+
 export class BadRequestError extends AppError {
   constructor(message: string) {
     super(400, message);

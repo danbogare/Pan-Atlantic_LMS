@@ -40,6 +40,32 @@ export const loginRateLimiters: RequestHandler[] = [
   }),
 ];
 
+// Sign-up creates an account and sends a welcome email, so every request counts.
+// 30/hour per IP balances students registering from one campus network against email abuse.
+export const registerRateLimiters: RequestHandler[] = [
+  createLimiter(ONE_HOUR, 30, "Too many sign-up attempts from this network. Please try again later.", {
+    keyGenerator: ipKey,
+  }),
+];
+
+// Submitting a verification code: keyed on the email so rotating IPs can't brute-force the 6-digit code.
+export const verifyEmailRateLimiters: RequestHandler[] = [
+  createLimiter(FIFTEEN_MINUTES, 10, "Too many incorrect verification attempts. Please request a new code later.", {
+    keyGenerator: (req) => `verify:${emailFromBody(req)}`,
+    skipSuccessfulRequests: true,
+  }),
+];
+
+// Resending a verification code sends an email, so every request counts.
+export const resendVerificationRateLimiters: RequestHandler[] = [
+  createLimiter(ONE_HOUR, 30, "Too many verification code requests from this network. Please try again later.", {
+    keyGenerator: ipKey,
+  }),
+  createLimiter(ONE_HOUR, 5, "Too many verification code requests. Please try again later.", {
+    keyGenerator: (req) => `${ipKey(req)}:${emailFromBody(req)}`,
+  }),
+];
+
 // Requesting a reset code sends an email, so every request counts.
 export const passwordResetRequestRateLimiters: RequestHandler[] = [
   createLimiter(ONE_HOUR, 30, "Too many password reset requests from this network. Please try again later.", {

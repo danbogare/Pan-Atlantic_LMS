@@ -1,8 +1,10 @@
+import { escapeHtml } from "../utils/html";
+
 // Generates the HTML layout for the instructor invitation welcome email.
 export function instructorInviteTemplate(firstName: string, tempPassword: string): string {
   return `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
-      <h2 style="color: #1a365d;">Welcome to Pan-Atlantic LMS, ${firstName}!</h2>
+      <h2 style="color: #1a365d;">Welcome to Pan-Atlantic LMS, ${escapeHtml(firstName)}!</h2>
       <p>Your instructor account has been created and is ready to use.</p>
       <p>Log in using your registered email address and the temporary password below:</p>
 

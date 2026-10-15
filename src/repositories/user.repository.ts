@@ -15,6 +15,13 @@ export interface IUserRepository {
   updateStreak(id: string, newStreak: number): Promise<IUser | null>;
   updatePassword(id: string, newPasswordHash: string): Promise<void>;
   updateUserInfo(id: string, firstname: string, lastname: string): Promise<IUser | null>
+  findProfileById(id: string): Promise<IUser | null>;
+  markEmailVerified(id: string): Promise<IUser | null>;
+  updatePendingRegistration(
+    id: string,
+    data: { firstName: string; lastName: string; passwordHash: string }
+  ): Promise<IUser | null>;
+  updateProfile(id: string, data: { firstName?: string; lastName?: string }): Promise<IUser | null>;
   changePassword(id: string, newPasswordHash: string): Promise<void>;
   getStudentByIdWithCourses(id: string): Promise<IStudentWithCourses | null>;
   getInstructorByIdWithCourses(id: string): Promise<IInstructorWithCourses | null>;
@@ -43,7 +50,7 @@ export class UserRepository implements IUserRepository {
   public async findAuthStateById(id: string): Promise<IUserAuthState | null> {
     return await this.UserModel
       .findById(id)
-      .select('email role isActive mustChangePassword')
+      .select('email role isActive mustChangePassword emailVerified')
       .lean<IUserAuthState>()
       .exec();
   }
@@ -89,7 +96,35 @@ export class UserRepository implements IUserRepository {
       id,
       { $set: { firstName: firstname, lastName: lastname } },
       { new: true }
+    ).select('-passwordHash').exec();
+  }
+
+  public async markEmailVerified(id: string): Promise<IUser | null> {
+    return await this.UserModel.findByIdAndUpdate(id, { $set: { emailVerified: true } }, { new: true }).exec();
+  }
+
+  // Replaces the details of a sign-up that was never verified (only the inbox owner can complete it)
+  public async updatePendingRegistration(
+    id: string,
+    data: { firstName: string; lastName: string; passwordHash: string }
+  ): Promise<IUser | null> {
+    return await this.UserModel.findOneAndUpdate(
+      { _id: id, emailVerified: false },
+      { $set: data },
+      { new: true, runValidators: true }
     ).exec();
+  }
+
+  public async findProfileById(id: string): Promise<IUser | null> {
+    return await this.UserModel.findById(id).select('-passwordHash').exec();
+  }
+
+  public async updateProfile(id: string, data: { firstName?: string; lastName?: string }): Promise<IUser | null> {
+    return await this.UserModel.findByIdAndUpdate(
+      id,
+      { $set: data },
+      { new: true, runValidators: true }
+    ).select('-passwordHash').exec();
   }
 
   public async updatePassword(id: string, newPasswordHash: string): Promise<void> {

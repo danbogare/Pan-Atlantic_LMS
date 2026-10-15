@@ -18,6 +18,7 @@ import { AuthMiddleware } from "./middlewares/auth.middleware";
 import { UserController } from "./controllers/user.controller";
 import { AuthRouter } from "./routes/auth.route";
 import { AdminRouter } from "./routes/admin.route";
+import { UserRouter } from "./routes/user.route";
 import { CourseRepository } from "./repositories/course.repository";
 import { Course, Enrollment, InstructorAssignment } from "./models/course.model";
 import { CourseContentRepository } from "./repositories/courseModule.repository";
@@ -226,9 +227,11 @@ class App {
     const notificationRouter = new NotificationRouter(notificationController, authMiddleware);
     const quizRouter = new QuizRouter(quizController, authMiddleware, courseAccessMiddleware);
     const publicRouter = new PublicRouter(courseController);
+    const userRouter = new UserRouter(userController, authMiddleware);
 
     this.instance.use("/public", publicRouter.getRouter());
     this.instance.use("/auth", authRouter.getRouter());
+    this.instance.use("/users", userRouter.getRouter());
     this.instance.use("/admin", adminRouter.getRouter());
     this.instance.use("/courses", courseRouter.getRouter());
     this.instance.use("/student/notes", noteRouter.getRouter());

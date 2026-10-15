@@ -1,12 +1,23 @@
 import { Request, Response } from "express";
 import { IAuthService } from "../services/auth.service";
-import { successResponse } from "../utils/response";
-import { ChangePasswordInput, ForgotPasswordInput, LoginInput, ResetPasswordInput } from "../validators/auth.validator";
+import { createdSuccessResponse, successResponse } from "../utils/response";
+import {
+  ChangePasswordInput,
+  ForgotPasswordInput,
+  LoginInput,
+  RegisterInput,
+  ResendVerificationInput,
+  ResetPasswordInput,
+  VerifyEmailInput,
+} from "../validators/auth.validator";
 import { InvalidCredentialError } from "../errors/error";
 import { IAuthUser } from "../interfaces/auth.interface";
 
 export interface IAuthController {
   login: (req: Request<{}, {}, LoginInput>, res: Response) => Promise<void>;
+  register: (req: Request<{}, {}, RegisterInput>, res: Response) => Promise<void>;
+  verifyEmail: (req: Request<{}, {}, VerifyEmailInput>, res: Response) => Promise<void>;
+  resendVerification: (req: Request<{}, {}, ResendVerificationInput>, res: Response) => Promise<void>;
   changePassword: (req: Request<{}, {}, ChangePasswordInput>, res: Response) => Promise<void>;
   forgotPassword: (req: Request<{}, {}, ForgotPasswordInput>, res: Response) => Promise<void>;
   resetPassword: (req: Request<{}, {}, ResetPasswordInput>, res: Response) => Promise<void>;
@@ -21,6 +32,29 @@ export class AuthController implements IAuthController {
     if (!authUser.user) throw new InvalidCredentialError();
 
     successResponse(res, "logged in successfully.", authUser);
+  };
+
+  public register = async (req: Request<{}, {}, RegisterInput>, res: Response): Promise<void> => {
+    const { firstName, lastName, email, password } = req.body;
+
+    const pending = await this.authService.registerStudent({ firstName, lastName, email, password });
+
+    createdSuccessResponse(res, "account created. A verification code has been sent to your email.", pending);
+  };
+
+  public verifyEmail = async (req: Request<{}, {}, VerifyEmailInput>, res: Response): Promise<void> => {
+    const { email, otp } = req.body;
+
+    const authUser: IAuthUser = await this.authService.verifyEmail(email, otp);
+
+    successResponse(res, "email verified successfully.", authUser);
+  };
+
+  public resendVerification = async (req: Request<{}, {}, ResendVerificationInput>, res: Response): Promise<void> => {
+    await this.authService.resendVerificationCode(req.body.email);
+
+    // Same response whether or not the account exists or is already verified
+    successResponse(res, "if this account is awaiting verification, a new code has been sent.", {});
   };
 
   public changePassword = async (req: Request<{}, {}, ChangePasswordInput>, res: Response): Promise<void> => {

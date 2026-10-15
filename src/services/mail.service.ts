@@ -2,6 +2,8 @@ import nodemailer, { Transporter } from "nodemailer";
 import { Resend } from "resend";
 import { studentInviteTemplate } from "../templates/student-invite.template";
 import { instructorInviteTemplate } from "../templates/instructor-invite.template";
+import { studentWelcomeTemplate } from "../templates/student-welcome.template";
+import { emailVerificationTemplate } from "../templates/email-verification.template";
 import { passwordResetTemplate } from "../templates/password-reset.template";
 import { ISMTPConfig } from "../config/env";
 
@@ -60,6 +62,8 @@ export class SMTPProvider implements IMailProvider {
 
 export interface IMailService {
   sendStudentInviteEmail(email: string, firstName: string, tempPassword: string): Promise<void>;
+  sendStudentWelcomeEmail(email: string, firstName: string): Promise<void>;
+  sendEmailVerificationEmail(email: string, firstName: string, code: string, expiresInMinutes: number): Promise<void>;
   sendInstructorInviteEmail(email: string, firstName: string, tempPassword: string): Promise<void>;
   sendPasswordResetEmail(email: string, firstName: string, otp: string, expiresInMinutes?: number ): Promise<void>;
 }
@@ -88,6 +92,39 @@ export class MailService implements IMailService {
     }
   }
   
+  async sendStudentWelcomeEmail(email: string, firstName: string): Promise<void> {
+    const subject = "Welcome to Pan-Atlantic LMS";
+    const html = studentWelcomeTemplate(firstName);
+
+    try {
+      await this.provider.send(email, subject, html);
+      console.log(`Email sent to ${email}`);
+    } catch (error) {
+      console.error(`Email failed for ${email}:`, error);
+      // IMPORTANT: don't silently succeed
+      throw error;
+    }
+  }
+
+  async sendEmailVerificationEmail(
+    email: string,
+    firstName: string,
+    code: string,
+    expiresInMinutes: number
+  ): Promise<void> {
+    const subject = "Verify your Pan-Atlantic LMS email";
+    const html = emailVerificationTemplate(firstName, code, expiresInMinutes);
+
+    try {
+      await this.provider.send(email, subject, html);
+      console.log(`Email sent to ${email}`);
+    } catch (error) {
+      console.error(`Email failed for ${email}:`, error);
+      // IMPORTANT: don't silently succeed
+      throw error;
+    }
+  }
+
   async sendInstructorInviteEmail(
     email: string,
     firstName: string,

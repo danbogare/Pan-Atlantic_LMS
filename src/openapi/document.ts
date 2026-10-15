@@ -4,6 +4,7 @@ import type { OpenAPIObject } from "openapi3-ts/oas31";
 import { registry } from "./registry";
 import { registerCourseDocs } from "./course.docs";
 import { registerAuthDocs } from "./auth.docs";
+import { registerUserDocs } from "./user.docs";
 import { registerAdminDocs } from "./admin.docs";
 import { registerBadgeDocs } from "./badge.docs";
 import { registerCertificateDocs } from "./certificate.docs";
@@ -20,6 +21,7 @@ export function getOpenApiDocument(): OpenAPIObject {
   if (cached) return cached;
 
   registerAuthDocs();
+  registerUserDocs();
   registerCourseDocs();
   registerAdminDocs();
   registerStatsDocs();
@@ -48,6 +50,10 @@ export function getOpenApiDocument(): OpenAPIObject {
           "The same access token keeps working after the change.",
         "",
         "**Deactivated accounts** receive 403 on login and on every authenticated request.",
+        "",
+        "**Student sign-up:** `POST /auth/register` creates an unverified account and emails a 6-digit code (valid 5 minutes); " +
+          "`POST /auth/verify-email` verifies it and logs the student in; `POST /auth/verify-email/resend` sends a new code. " +
+          "Logging in before verifying returns 403 with `code: \"EMAIL_NOT_VERIFIED\"`. Admin-created accounts are already verified.",
         "",
         "**Rate limits:** login and password-reset endpoints return 429 when limits are exceeded.",
         "",

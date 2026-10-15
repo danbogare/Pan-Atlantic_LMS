@@ -6,6 +6,9 @@ export enum OtpPurpose {
   TWO_FACTOR = '2fa'
 }
 
+// Codes are deleted by MongoDB after this long (TTL index below); services also check age explicitly
+export const OTP_TTL_SECONDS = 300;
+
 export interface IOtp extends Document {
   userId: Types.ObjectId;
   code: string; // Stored as a hash for security
@@ -33,7 +36,7 @@ const OtpSchema = new Schema<IOtp>({
     type: Date,
     default: Date.now,
     // Automatically deletes the document after 5 minutes (300 seconds)
-    expires: 300 
+    expires: OTP_TTL_SECONDS
   }
 });
 

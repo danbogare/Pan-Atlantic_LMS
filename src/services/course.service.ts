@@ -9,6 +9,8 @@ import {
   CourseAccessDeniedError,
   CourseNotFoundError,
   EnrollmentNotFoundError,
+  LessonNotFoundError,
+  ModuleNotFoundError,
 } from "../errors/error";
 import { CourseStatus, EnrollmentStatus, ICourse } from "../models/course.model";
 import { ContentType, ICourseLesson, ICourseModule } from "../models/courseModule.model";
@@ -424,7 +426,7 @@ export class CourseService implements ICourseService {
   public async getModuleWithLessons(moduleId: string): Promise<any> {
     const module = await this.contentRepo.getModuleWithLessons(moduleId);
     if (!module) {
-      throw new Error(`Module ${moduleId} not found`);
+      throw new ModuleNotFoundError(`Module ${moduleId} not found`);
     }
     return module;
   }
@@ -434,7 +436,7 @@ export class CourseService implements ICourseService {
   public async updateModule(moduleId: string, data: UpdateModule): Promise<any> {
     const updated = await this.contentRepo.updateModule(moduleId, data);
     if (!updated) {
-      throw new Error(`Module ${moduleId} not found`);
+      throw new ModuleNotFoundError(`Module ${moduleId} not found`);
     }
     return updated;
   }
@@ -457,7 +459,7 @@ export class CourseService implements ICourseService {
     // Get module to retrieve courseId
     const module = await this.contentRepo.findModuleById(moduleId);
     if (!module) {
-      throw new Error(`Module ${moduleId} not found`);
+      throw new ModuleNotFoundError(`Module ${moduleId} not found`);
     }
 
     const courseId = module.course.toString();
@@ -505,7 +507,11 @@ export class CourseService implements ICourseService {
 
   // Update a lesson
   public async updateLesson(lessonId: string, data: UpdateLesson): Promise<ICourseLesson | null> {
-    return await this.contentRepo.updateLesson(lessonId, data);
+    const updated = await this.contentRepo.updateLesson(lessonId, data);
+    if (!updated) {
+      throw new LessonNotFoundError(`Lesson ${lessonId} not found`);
+    }
+    return updated;
   }
 
   // Delete a lesson
@@ -519,7 +525,7 @@ export class CourseService implements ICourseService {
     // Get lesson to determine content type and course
     const lesson = await this.contentRepo.findLessonById(lessonId);
     if (!lesson) {
-      throw new Error(`Lesson ${lessonId} not found`);
+      throw new LessonNotFoundError(`Lesson ${lessonId} not found`);
     }
 
     let url: string;

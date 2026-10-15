@@ -4,7 +4,7 @@ import { createdSuccessResponse, successResponse } from "../utils/response";
 import { EnrollStudentInput } from "../validators/student.validator";
 import { EnrollStudentPayload, InviteInstructorPayload } from "../interfaces/user.interface";
 import { InviteInstructorInput } from "../validators/instructor.validator";
-import { UpdateUserInfoInput } from "../validators/user.validator";
+import { UpdateProfileInput, UpdateUserInfoInput } from "../validators/user.validator";
 
 export interface IUserController {
   enrollStudent: (req: Request<{}, {}, EnrollStudentInput>, res: Response) => Promise<void>;
@@ -14,6 +14,8 @@ export interface IUserController {
   getAllInstructors: (req: Request, res: Response) => Promise<void>;
   getStudentById: (req: Request, res: Response) => Promise<void>;
   getInstructorById: (req: Request, res: Response) => Promise<void>;
+  getMyProfile: (req: Request, res: Response) => Promise<void>;
+  updateMyProfile: (req: Request<{}, {}, UpdateProfileInput>, res: Response) => Promise<void>;
 }
 export class UserController implements IUserController {
   constructor(private readonly userService: IUserService) {}
@@ -55,6 +57,17 @@ export class UserController implements IUserController {
     const user = await this.userService.updateUserInfo(id, firstName, lastName);
 
     successResponse(res, "user info updated successfully.", user);
+  };
+
+  public getMyProfile = async (req: Request, res: Response): Promise<void> => {
+    const user = await this.userService.getProfile(req.user!.id);
+    successResponse(res, "profile retrieved successfully.", user);
+  };
+
+  public updateMyProfile = async (req: Request<{}, {}, UpdateProfileInput>, res: Response): Promise<void> => {
+    const { firstName, lastName } = req.body;
+    const user = await this.userService.updateProfile(req.user!.id, { firstName, lastName });
+    successResponse(res, "profile updated successfully.", user);
   };
 
   public getAllStudents = async (_req: Request, res: Response): Promise<void> => {

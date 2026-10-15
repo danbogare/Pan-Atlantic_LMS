@@ -18,3 +18,12 @@ export const updateUserInfoSchema = z.object({
 // Pro-tip: Export the TypeScript type inferred from the Zod schema
 // This lets you use it in your controllers/services for strict typing!
 export type UpdateUserInfoInput = z.infer<typeof updateUserInfoSchema>;
+
+// Self-service profile update: at least one field, same rules as the admin update
+export const updateProfileSchema = updateUserInfoSchema
+  .partial()
+  .refine((data) => data.firstName !== undefined || data.lastName !== undefined, {
+    error: "Provide firstName and/or lastName to update",
+  });
+
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

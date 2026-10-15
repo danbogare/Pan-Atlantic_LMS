@@ -1,3 +1,5 @@
+import { escapeHtml } from "../utils/html";
+
 export function passwordResetTemplate(
   firstName: string,
   otp: string,
@@ -6,7 +8,7 @@ export function passwordResetTemplate(
   return `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
       <h2 style="color: #1a365d;">Password Reset Request</h2>
-      <p>Hi ${firstName},</p>
+      <p>Hi ${escapeHtml(firstName)},</p>
       <p>We received a request to reset the password for your Pan-Atlantic LMS account. Use the verification code below to continue:</p>
 
       <div style="background-color: #f7fafc; padding: 15px; border-left: 4px solid #3182ce; margin: 20px 0; text-align: center;">

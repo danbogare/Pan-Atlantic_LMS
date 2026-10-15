@@ -21,7 +21,8 @@ export interface ICourseModule extends Document {
 const CourseModuleSchema = new Schema<ICourseModule>(
   {
     title: { type: String, required: true, trim: true },
-    description: { type: String, required: true },
+    // Optional (matches the validator); stored as '' when not provided
+    description: { type: String, default: '' },
     course: { type: Schema.Types.ObjectId, ref: 'Course', required: true },
     order: { type: Number, required: true, min: 0 },
     duration: { type: Number, default: 0, min: 0 },

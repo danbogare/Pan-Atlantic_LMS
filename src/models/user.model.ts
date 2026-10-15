@@ -16,6 +16,9 @@ export interface IUser extends Document {
   role: UserRole;
   isActive: boolean;
   mustChangePassword: boolean;
+  // false only for self-registered accounts that haven't confirmed their email yet;
+  // admin-created and pre-existing accounts count as verified
+  emailVerified: boolean;
   learningStreak?: number;
   createdAt: Date;
   updatedAt: Date;
@@ -40,6 +43,7 @@ const UserSchema = new Schema<IUser>({
   },
   isActive: { type: Boolean, default: true },
   mustChangePassword: { type: Boolean, default: false },
+  emailVerified: { type: Boolean, default: true },
   learningStreak: { type: Number, default: 0 }
 }, {
   timestamps: true 

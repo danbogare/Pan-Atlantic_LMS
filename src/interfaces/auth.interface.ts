@@ -6,6 +6,13 @@ export interface IAuthUserPayload {
   role: UserRole;
 }
 
+export interface RegisterStudentPayload {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+}
+
 export interface IAuthUser {
   user: IUser;
   accessToken: string;
@@ -15,4 +22,10 @@ export interface IUserAuthState {
   role: UserRole;
   isActive: boolean;
   mustChangePassword: boolean;
+  emailVerified?: boolean;
+}
+
+export interface RegistrationPending {
+  email: string;
+  expiresInMinutes: number;
 }

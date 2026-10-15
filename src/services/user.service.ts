@@ -2,7 +2,7 @@ import { IUserRepository } from "../repositories/user.repository";
 import { ICourseRepository } from "../repositories/course.repository";
 import { IUser, UserRole } from "../models/user.model";
 import { IMailService } from "./mail.service";
-import { UserExistsError, CourseNotFoundError } from "../errors/error";
+import { UserExistsError, CourseNotFoundError, UserNotFoundError } from "../errors/error";
 import { ICryptoService } from "./crypto.service";
 import { Types } from "mongoose";
 import { ICourse } from "../models/course.model";
@@ -24,6 +24,10 @@ export interface IUserService {
   getInstructorByIdWithCourses(id: string): Promise<IInstructorWithCourses | null>;
 
   updateUserInfo(id: string, firstName: string, lastName: string): Promise<IUser | null>;
+
+  // Self-service profile (any logged-in user)
+  getProfile(id: string): Promise<IUser>;
+  updateProfile(id: string, data: { firstName?: string; lastName?: string }): Promise<IUser>;
 }
 
 export class UserService implements IUserService {
@@ -135,6 +139,23 @@ export class UserService implements IUserService {
 
   public async updateUserInfo(id: string, firstName: string, lastName: string): Promise<IUser | null> {
     return await this.userRepository.updateUserInfo(id, firstName, lastName);
+  }
+
+  public async getProfile(id: string): Promise<IUser> {
+    const user = await this.userRepository.findProfileById(id);
+    if (!user) throw new UserNotFoundError();
+    return user;
+  }
+
+  public async updateProfile(id: string, data: { firstName?: string; lastName?: string }): Promise<IUser> {
+    // Only names are self-editable; email/role/status changes stay with admins
+    const update: { firstName?: string; lastName?: string } = {};
+    if (data.firstName !== undefined) update.firstName = data.firstName;
+    if (data.lastName !== undefined) update.lastName = data.lastName;
+
+    const user = await this.userRepository.updateProfile(id, update);
+    if (!user) throw new UserNotFoundError();
+    return user;
   }
 
   // Private helper methods
