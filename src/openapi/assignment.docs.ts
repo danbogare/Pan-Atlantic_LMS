@@ -59,7 +59,7 @@ export function registerAssignmentDocs() {
       params: LessonIdParam,
       body: { content: { "application/json": { schema: submitAssignmentSchema } } },
     },
-    responses: { 201: successEnvelope(SubmissionSchema, "Assignment submitted"), ...pick(errorResponses, 400, 401, 404) },
+    responses: { 201: successEnvelope(SubmissionSchema, "Assignment submitted"), ...pick(errorResponses, 400, 401, 403, 404) },
   });
 
   registry.registerPath({

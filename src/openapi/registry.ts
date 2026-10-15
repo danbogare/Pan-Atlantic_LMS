@@ -22,6 +22,13 @@ export const ErrorResponseSchema = registry.register(
   z.object({
     success: z.literal(false).openapi({ example: false }),
     message: z.string().openapi({ example: "Course not found" }),
+    code: z
+      .string()
+      .optional()
+      .openapi({
+        example: "PASSWORD_CHANGE_REQUIRED",
+        description: "Machine-readable error code, present on some errors (e.g. PASSWORD_CHANGE_REQUIRED)",
+      }),
     stack: z
       .string()
       .optional()
@@ -52,9 +59,14 @@ export const successEnvelope = <T extends z.ZodTypeAny>(dataSchema: T, descripti
 export const errorResponses = {
   400: jsonContent(ErrorResponseSchema, "Validation error"),
   401: jsonContent(ErrorResponseSchema, "Not authenticated"),
-  403: jsonContent(ErrorResponseSchema, "Not authorized (admin/instructor only)"),
+  403: jsonContent(
+    ErrorResponseSchema,
+    "Forbidden: wrong role, account deactivated, temporary password not yet changed (code PASSWORD_CHANGE_REQUIRED), " +
+      "not enrolled/assigned to the course (code COURSE_ACCESS_DENIED), or course access expired (code COURSE_ACCESS_EXPIRED)"
+  ),
   404: jsonContent(ErrorResponseSchema, "Not found"),
   409: jsonContent(ErrorResponseSchema, "Conflict (e.g. resource already exists)"),
+  429: jsonContent(ErrorResponseSchema, "Too many requests, try again later"),
   500: jsonContent(ErrorResponseSchema, "Internal server error"),
 };
 

@@ -57,6 +57,6 @@ export function registerProgressDocs() {
       params: CourseIdParam,
       body: { content: { "application/json": { schema: markLessonCompleteSchema } } },
     },
-    responses: { 200: successEnvelope(MarkCompleteResultSchema, "Lesson marked complete"), ...pick(errorResponses, 400, 401, 404) },
+    responses: { 200: successEnvelope(MarkCompleteResultSchema, "Lesson marked complete"), ...pick(errorResponses, 400, 401, 403, 404) },
   });
 }

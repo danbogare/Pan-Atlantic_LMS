@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { IQuizController } from "../controllers/quiz.controller";
 import { IAuthMiddleware } from "../middlewares/auth.middleware";
+import { ICourseAccessMiddleware } from "../middlewares/course-access.middleware";
 import { asyncHandler } from "../middlewares/async-handler.middleware";
 import { validate } from "../middlewares/validation.middleware";
 import { submitAttemptSchema } from "../validators/quiz.validator";
@@ -10,7 +11,8 @@ export class QuizRouter {
 
   constructor(
     private readonly quizController: IQuizController,
-    private readonly authMiddleware: IAuthMiddleware
+    private readonly authMiddleware: IAuthMiddleware,
+    private readonly courseAccess: ICourseAccessMiddleware
   ) {
     this.initializeRoutes();
   }
@@ -25,12 +27,14 @@ export class QuizRouter {
     // GET /student/quizzes/lessons/:lessonId
     this.router.get(
       "/lessons/:lessonId",
+      asyncHandler(this.courseAccess.requireLearnAccess(this.courseAccess.fromLessonParam("lessonId"))),
       asyncHandler(this.quizController.getQuizForStudent)
     );
 
     // POST /student/quizzes/:quizId/attempts
     this.router.post(
       "/:quizId/attempts",
+      asyncHandler(this.courseAccess.requireLearnAccess(this.courseAccess.fromQuizParam("quizId"))),
       asyncHandler(this.quizController.startAttempt)
     );
 
@@ -38,6 +42,7 @@ export class QuizRouter {
     this.router.patch(
       "/attempts/:attemptId/submit",
       validate(submitAttemptSchema),
+      asyncHandler(this.courseAccess.requireLearnAccess(this.courseAccess.fromAttemptParam("attemptId"))),
       asyncHandler(this.quizController.submitAttempt)
     );
   }

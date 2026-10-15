@@ -10,29 +10,83 @@ import {
   updateLessonSchema,
   reorderModulesSchema,
   reorderLessonsSchema,
+  courseListQuerySchema,
+  publicCourseListQuerySchema,
+  enrollInCourseSchema,
+  extendAccessSchema,
 } from "../validators/course.validator";
+import { CourseLevel, CourseStatus, CourseType, Currency } from "../models/course.model";
 
 const CourseIdParam = z.object({ courseId: z.string().openapi({ example: "clv9x...abc" }) });
 const ModuleIdParam = z.object({ moduleId: z.string().openapi({ example: "clv9y...def" }) });
 const LessonIdParam = z.object({ lessonId: z.string().openapi({ example: "clv9z...ghi" }) });
 
-// GUESS — paste your Course/Module/Lesson mongoose/prisma models (or
-// course.controller.ts) so these response shapes reflect what you actually
-// return, not just what was accepted on the way in.
+const StudentIdParam = z.object({ studentId: z.string().openapi({ example: "665f1c2e8b3e4a0012ab34cd" }) });
+
+// Mirrors ICourse in models/course.model.ts
 const CourseSchema = registry.register(
   "Course",
   z.object({
-    id: z.string(),
+    _id: z.string(),
     title: z.string(),
     description: z.string(),
-    level: z.string(),
-    duration: z.number(),
+    thumbnail: z.string().optional(),
+    level: z.enum(CourseLevel),
+    courseType: z.enum(CourseType),
+    status: z.enum(CourseStatus),
+    duration: z.number().int().openapi({ description: "Access period in days after enrollment; 0 = never expires" }),
+    price: z.number().openapi({ description: "Price in naira, up to 2 decimal places; 0 = free", example: 25000 }),
+    currency: z.enum(Currency),
     prerequisites: z.array(z.string()).optional(),
     learningObjectives: z.array(z.string()).optional(),
-    published: z.boolean(),
+    createdBy: z.string(),
+    publishedAt: z.string().datetime().optional(),
     createdAt: z.string().datetime(),
+    updatedAt: z.string().datetime(),
   })
 );
+
+const AccessSummarySchema = registry.register(
+  "CourseAccess",
+  z.object({
+    enrolledAt: z.string().datetime(),
+    accessStartsAt: z.string().datetime().nullable().openapi({ description: "Midnight (Africa/Lagos) the day after enrollment" }),
+    accessExpiresAt: z.string().datetime().nullable().openapi({ description: "null = never expires" }),
+    isExpired: z.boolean(),
+    daysRemaining: z.number().int().nullable().openapi({ description: "null = never expires" }),
+  })
+);
+
+const PublicCourseSchema = registry.register(
+  "PublicCourse",
+  CourseSchema.omit({ status: true, createdBy: true, createdAt: true, updatedAt: true })
+);
+
+const PublicLessonSchema = z.object({
+  _id: z.string(),
+  title: z.string(),
+  description: z.string().optional(),
+  order: z.number(),
+  duration: z.number(),
+  contentType: z.enum(["video", "document", "quiz", "essay", "assignment"]),
+  isPreview: z.boolean(),
+  contentLink: z.string().optional().openapi({ description: "Only present on preview lessons" }),
+  contentFile: z.string().optional().openapi({ description: "Only present on preview lessons" }),
+});
+
+const PublicCourseDetailsSchema = PublicCourseSchema.extend({
+  instructors: z.array(z.object({ firstName: z.string(), lastName: z.string(), role: z.string() })),
+  modules: z.array(
+    z.object({
+      _id: z.string(),
+      title: z.string(),
+      description: z.string().optional(),
+      order: z.number(),
+      duration: z.number(),
+      lessons: z.array(PublicLessonSchema),
+    })
+  ),
+});
 
 const ModuleSchema = registry.register(
   "Module",
@@ -52,15 +106,58 @@ const LessonSchema = registry.register(
 );
 
 export function registerCourseDocs() {
-  // PUBLIC (any authenticated user)
+  // PUBLIC (no authentication)
+
+  registry.registerPath({
+    method: "get",
+    path: "/public/courses",
+    tags: ["Public"],
+    summary: "Public course catalog (published courses only)",
+    request: { query: publicCourseListQuerySchema },
+    responses: {
+      200: successEnvelope(
+        z.object({
+          items: z.array(PublicCourseSchema),
+          page: z.number().int(),
+          limit: z.number().int().openapi({ description: "Defaults to 12, max 100" }),
+          total: z.number().int(),
+          totalPages: z.number().int(),
+        }),
+        "Paginated published courses"
+      ),
+      ...pick(errorResponses, 400),
+    },
+  });
+
+  registry.registerPath({
+    method: "get",
+    path: "/public/courses/{courseId}",
+    tags: ["Public"],
+    summary: "Public course details with module/lesson outline",
+    description: "Lesson content links are only included for preview lessons. Unpublished courses return 404.",
+    request: { params: CourseIdParam },
+    responses: { 200: successEnvelope(PublicCourseDetailsSchema, "Course outline"), ...pick(errorResponses, 404) },
+  });
+
+  // AUTHENTICATED
 
   registry.registerPath({
     method: "get",
     path: "/courses",
     tags: ["Courses"],
-    summary: "List all courses",
+    summary: "List courses visible to the caller",
+    description:
+      "Admin: every course. Instructor: courses they are assigned to. Student: courses they are enrolled in (archived excluded), " +
+      "each with an `access` object showing expiry. Filter with `courseType`, `level`, `status`, `search`; paginate with `page` + `limit`.",
     security: [{ [bearerAuth.name]: [] }],
-    responses: { 200: successEnvelope(z.array(CourseSchema), "List of courses"), ...pick(errorResponses, 401) },
+    request: { query: courseListQuerySchema },
+    responses: {
+      200: successEnvelope(
+        z.array(CourseSchema.extend({ access: AccessSummarySchema.optional().openapi({ description: "Students only" }) })),
+        "List of courses"
+      ),
+      ...pick(errorResponses, 400, 401, 403),
+    },
   });
 
   registry.registerPath({
@@ -70,7 +167,7 @@ export function registerCourseDocs() {
     summary: "Get course details by course id",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: CourseIdParam },
-    responses: { 200: successEnvelope(CourseSchema, "Full course details"), ...pick(errorResponses, 401, 404) },
+    responses: { 200: successEnvelope(CourseSchema, "Full course details"), ...pick(errorResponses, 401, 403, 404) },
   });
 
   registry.registerPath({
@@ -82,7 +179,7 @@ export function registerCourseDocs() {
     request: { params: CourseIdParam },
     responses: {
       200: successEnvelope(z.array(z.object({ id: z.string(), name: z.string() })), "Course instructors"),
-      ...pick(errorResponses, 401, 404),
+      ...pick(errorResponses, 401, 403, 404),
     },
   });
 
@@ -91,11 +188,12 @@ export function registerCourseDocs() {
     path: "/courses/{courseId}/students",
     tags: ["Courses"],
     summary: "Get enrolled students by course id",
+    description: "Admin or an instructor assigned to the course.",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: CourseIdParam },
     responses: {
       200: successEnvelope(z.array(z.object({ id: z.string(), name: z.string() })), "Enrolled students"),
-      ...pick(errorResponses, 401, 404),
+      ...pick(errorResponses, 401, 403, 404),
     },
   });
 
@@ -108,7 +206,7 @@ export function registerCourseDocs() {
     request: { params: CourseIdParam },
     responses: {
       200: successEnvelope(z.object({ enrolledCount: z.number(), completionRate: z.number() }), "Course statistics"),
-      ...pick(errorResponses, 401, 404),
+      ...pick(errorResponses, 401, 403, 404),
     },
   });
 
@@ -121,7 +219,7 @@ export function registerCourseDocs() {
     request: { params: CourseIdParam },
     responses: {
       200: successEnvelope(z.array(ModuleSchema.and(z.object({ lessons: z.array(LessonSchema) }))), "Modules with lessons"),
-      ...pick(errorResponses, 401, 404),
+      ...pick(errorResponses, 401, 403, 404),
     },
   });
 
@@ -132,7 +230,7 @@ export function registerCourseDocs() {
     summary: "Get lessons by module id",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: ModuleIdParam },
-    responses: { 200: successEnvelope(z.array(LessonSchema), "Lessons for module"), ...pick(errorResponses, 401, 404) },
+    responses: { 200: successEnvelope(z.array(LessonSchema), "Lessons for module"), ...pick(errorResponses, 401, 403, 404) },
   });
 
   // ---- ADMIN & INSTRUCTOR ----
@@ -237,10 +335,43 @@ export function registerCourseDocs() {
     method: "post",
     path: "/courses/{courseId}/enroll",
     tags: ["Courses"],
-    summary: "Enroll in a course by Admin",
+    summary: "Enroll a student in a course (admin)",
+    description: "The student's access starts at midnight (Africa/Lagos) the day after enrollment and lasts the course's `duration` in days.",
     security: [{ [bearerAuth.name]: [] }],
-    request: { params: CourseIdParam },
-    responses: { 200: successEnvelope(z.object({ enrolled: z.boolean() }), "Enrolled"), ...pick(errorResponses, 401, 404, 409) },
+    request: { params: CourseIdParam, body: { content: { "application/json": { schema: enrollInCourseSchema } } } },
+    responses: {
+      201: successEnvelope(
+        z.object({
+          _id: z.string(),
+          student: z.string(),
+          course: z.string(),
+          enrolledAt: z.string().datetime(),
+          accessStartsAt: z.string().datetime(),
+          accessExpiresAt: z.string().datetime().nullable(),
+        }),
+        "Enrolled"
+      ),
+      ...pick(errorResponses, 400, 401, 403, 404, 409),
+    },
+  });
+
+  registry.registerPath({
+    method: "put",
+    path: "/courses/{courseId}/students/{studentId}/access",
+    tags: ["Courses"],
+    summary: "Extend or renew a student's course access (admin)",
+    description:
+      "Active access is extended from its current expiry. Expired, unlimited or pre-existing access gets a fresh window " +
+      "starting the next day (Africa/Lagos). `days: 0` removes the expiry.",
+    security: [{ [bearerAuth.name]: [] }],
+    request: {
+      params: CourseIdParam.merge(StudentIdParam),
+      body: { content: { "application/json": { schema: extendAccessSchema } } },
+    },
+    responses: {
+      200: successEnvelope(AccessSummarySchema, "Updated access"),
+      ...pick(errorResponses, 400, 401, 403, 404),
+    },
   });
 
   // ---- ADMIN ONLY ----

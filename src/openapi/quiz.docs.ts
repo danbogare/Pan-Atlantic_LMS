@@ -93,7 +93,7 @@ export function registerQuizDocs() {
     summary: "Get a quiz for a student (answers hidden)",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: LessonIdParam },
-    responses: { 200: successEnvelope(StudentQuizSchema, "Quiz retrieved"), ...pick(errorResponses, 401, 404) },
+    responses: { 200: successEnvelope(StudentQuizSchema, "Quiz retrieved"), ...pick(errorResponses, 401, 403, 404) },
   });
 
   registry.registerPath({
@@ -103,7 +103,7 @@ export function registerQuizDocs() {
     summary: "Start a quiz attempt",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: QuizIdParam },
-    responses: { 201: successEnvelope(AttemptSchema, "Attempt started"), ...pick(errorResponses, 400, 401, 404) },
+    responses: { 201: successEnvelope(AttemptSchema, "Attempt started"), ...pick(errorResponses, 400, 401, 403, 404) },
   });
 
   registry.registerPath({
@@ -116,7 +116,7 @@ export function registerQuizDocs() {
       params: AttemptIdParam,
       body: { content: { "application/json": { schema: submitAttemptSchema } } },
     },
-    responses: { 200: successEnvelope(AttemptSchema, "Quiz submitted"), ...pick(errorResponses, 400, 401, 404) },
+    responses: { 200: successEnvelope(AttemptSchema, "Quiz submitted"), ...pick(errorResponses, 400, 401, 403, 404) },
   });
 
   registry.registerPath({

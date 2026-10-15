@@ -39,7 +39,7 @@ export function registerNoteDocs() {
     summary: "Add a note",
     security: [{ [bearerAuth.name]: [] }],
     request: { body: { content: { "application/json": { schema: createNoteSchema } } } },
-    responses: { 201: successEnvelope(NoteSchema, "Note created"), ...pick(errorResponses, 400, 401, 404) },
+    responses: { 201: successEnvelope(NoteSchema, "Note created"), ...pick(errorResponses, 400, 401, 403, 404) },
   });
 
   registry.registerPath({

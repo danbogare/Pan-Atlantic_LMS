@@ -2,10 +2,12 @@ import { Model } from 'mongoose';
 import { IUser, UserRole } from '../models/user.model';
 import { IEnrollment, IInstructorAssignment } from '../models/course.model';
 import { IInstructorWithCourses, IStudentWithCourses } from '../interfaces/user.interface';
+import { IUserAuthState } from '../interfaces/auth.interface';
 
 export interface IUserRepository {
   findById(id: string): Promise<IUser | null>;
   findByEmail(email: string): Promise<IUser | null>;
+  findAuthStateById(id: string): Promise<IUserAuthState | null>;
   getAllInstructors(): Promise<IUser[]>;
   getAllStudents(): Promise<IUser[]>;
   getUsersByRole(role: UserRole): Promise<IUser[]>;
@@ -18,6 +20,7 @@ export interface IUserRepository {
   getInstructorByIdWithCourses(id: string): Promise<IInstructorWithCourses | null>;
   findIdsByRole(role: UserRole): Promise<string[]>;
   findAllIds(): Promise<string[]>;
+  deleteWithRelations(id: string): Promise<void>;
 }
 
 export class UserRepository implements IUserRepository {
@@ -32,7 +35,17 @@ export class UserRepository implements IUserRepository {
   }
 
   public async findByEmail(email: string): Promise<IUser | null> {
-    return await this.UserModel.findOne({ email }).exec();
+    // Emails are stored lowercased by the schema, so normalize lookups the same way
+    return await this.UserModel.findOne({ email: email.trim().toLowerCase() }).exec();
+  }
+
+  // Lightweight lookup used on every authenticated request
+  public async findAuthStateById(id: string): Promise<IUserAuthState | null> {
+    return await this.UserModel
+      .findById(id)
+      .select('email role isActive mustChangePassword')
+      .lean<IUserAuthState>()
+      .exec();
   }
 
   public async getAllInstructors(): Promise<IUser[]> {
@@ -119,5 +132,14 @@ export class UserRepository implements IUserRepository {
   public async findAllIds(): Promise<string[]> {
     const users = await this.UserModel.find().select('_id').exec();
     return users.map((u) => u._id.toString());
+  }
+
+  // Removes a user and anything linked to them; used to roll back a partially failed onboarding
+  public async deleteWithRelations(id: string): Promise<void> {
+    await Promise.all([
+      this.EnrollmentModel.deleteMany({ student: id }).exec(),
+      this.InstructorAssignmentModel.deleteMany({ instructor: id }).exec(),
+    ]);
+    await this.UserModel.findByIdAndDelete(id).exec();
   }
 }

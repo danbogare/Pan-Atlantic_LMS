@@ -43,7 +43,7 @@ export function registerDiscussionDocs() {
     summary: "List discussions for a course",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: CourseIdParam },
-    responses: { 200: successEnvelope(z.array(DiscussionSchema), "Course discussions"), ...pick(errorResponses, 401, 404) },
+    responses: { 200: successEnvelope(z.array(DiscussionSchema), "Course discussions"), ...pick(errorResponses, 401, 403, 404) },
   });
 
   registry.registerPath({
@@ -53,7 +53,7 @@ export function registerDiscussionDocs() {
     summary: "Get a discussion with its replies",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: DiscussionParams },
-    responses: { 200: successEnvelope(DiscussionWithRepliesSchema, "Discussion with replies"), ...pick(errorResponses, 401, 404) },
+    responses: { 200: successEnvelope(DiscussionWithRepliesSchema, "Discussion with replies"), ...pick(errorResponses, 401, 403, 404) },
   });
 
   registry.registerPath({
@@ -66,7 +66,7 @@ export function registerDiscussionDocs() {
       params: CourseIdParam,
       body: { content: { "application/json": { schema: createDiscussionSchema } } },
     },
-    responses: { 201: successEnvelope(DiscussionSchema, "Discussion created"), ...pick(errorResponses, 400, 401, 404) },
+    responses: { 201: successEnvelope(DiscussionSchema, "Discussion created"), ...pick(errorResponses, 400, 401, 403, 404) },
   });
 
   registry.registerPath({
@@ -79,6 +79,6 @@ export function registerDiscussionDocs() {
       params: DiscussionParams,
       body: { content: { "application/json": { schema: createReplySchema } } },
     },
-    responses: { 201: successEnvelope(ReplySchema, "Reply added"), ...pick(errorResponses, 400, 401, 404) },
+    responses: { 201: successEnvelope(ReplySchema, "Reply added"), ...pick(errorResponses, 400, 401, 403, 404) },
   });
 }

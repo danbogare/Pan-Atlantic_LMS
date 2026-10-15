@@ -1,7 +1,9 @@
-class AppError extends Error {
+export class AppError extends Error {
   constructor(
     public statusCode: number,
-    message: string
+    message: string,
+    // Optional machine-readable code so clients can branch without parsing messages
+    public code?: string
   ) {
     super(message);
   }
@@ -78,7 +80,49 @@ export class ForbiddenError extends AppError {
   }
 }
 
-export class NoteNotFoundError extends AppError { 
+export class PasswordChangeRequiredError extends AppError {
+  constructor() {
+    super(403, "You must change your temporary password before continuing.", "PASSWORD_CHANGE_REQUIRED");
+  }
+}
+
+export class BadRequestError extends AppError {
+  constructor(message: string) {
+    super(400, message);
+  }
+}
+
+export class ModuleNotFoundError extends AppError {
+  constructor(message: string) {
+    super(404, message);
+  }
+}
+
+export class EnrollmentNotFoundError extends AppError {
+  constructor(message: string) {
+    super(404, message);
+  }
+}
+
+export class AlreadyEnrolledError extends AppError {
+  constructor() {
+    super(409, "Student is already enrolled in this course");
+  }
+}
+
+export class CourseAccessDeniedError extends AppError {
+  constructor(message: string = "You do not have access to this course") {
+    super(403, message, "COURSE_ACCESS_DENIED");
+  }
+}
+
+export class CourseAccessExpiredError extends AppError {
+  constructor(expiredAt: Date) {
+    super(403, `Your access to this course expired on ${expiredAt.toISOString()}`, "COURSE_ACCESS_EXPIRED");
+  }
+}
+
+export class NoteNotFoundError extends AppError {
   constructor(message: string) {
     super(404, message);
   }

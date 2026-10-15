@@ -1,5 +1,6 @@
 import express, { Application, Request, Response } from "express";
 import cors from "cors";
+import helmet from "helmet";
 import swaggerUI from "swagger-ui-express";
 import morgan from "morgan";
 import { ErrorMiddleware } from "./middlewares/error.middleware";
@@ -23,6 +24,9 @@ import { CourseContentRepository } from "./repositories/courseModule.repository"
 import { CourseLesson, CourseModule } from "./models/courseModule.model";
 import { CloudinaryService } from "./services/storage.service";
 import { CourseService } from "./services/course.service";
+import { CourseAccessService } from "./services/course-access.service";
+import { CourseAccessMiddleware } from "./middlewares/course-access.middleware";
+import { PublicRouter } from "./routes/public.route";
 import { CourseController } from "./controllers/course.controller";
 import { CourseRouter } from "./routes/course.route";
 import { getOpenApiDocument } from "./openapi/document";
@@ -89,6 +93,10 @@ class App {
   }
 
   private initializeMiddlewares(): void {
+    // Lets req.ip reflect the real client behind a load balancer (used by rate limiting)
+    this.instance.set("trust proxy", env.trustProxy);
+    // CSP is off because the docs UIs load scripts from a CDN; CORP is relaxed so other origins can still embed API resources
+    this.instance.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: "cross-origin" } }));
     this.instance.use(cors());
     this.instance.use(express.json());
     this.instance.use(express.urlencoded({ extended: true }));
@@ -149,14 +157,22 @@ class App {
 
     // services
     const cryptoService = new CryptoService(env.jwtSecret);
-    const resendProvider = new ResendProvider(env.resendApiKey);
-    const smtpProvider = new SMTPProvider(env.smtp);
+    const resendProvider = new ResendProvider(env.resendApiKey, env.mailFrom);
+    const smtpProvider = new SMTPProvider(env.smtp, env.mailFrom);
     const mailProvider = env.nodeEnv === "production" ? resendProvider : smtpProvider;
     const mailService = new MailService(mailProvider);
     const authService = new AuthService(userRepository, otpRepository, mailService, cryptoService);
     const userService = new UserService(userRepository, courseRepository, mailService, cryptoService);
     const storageService = new CloudinaryService(env.cloudinary);
-    const courseService = new CourseService(courseRepository, courseContentRepository, storageService);
+    const courseService = new CourseService(courseRepository, courseContentRepository, storageService, userRepository);
+    const courseAccessService = new CourseAccessService(
+      courseRepository,
+      courseContentRepository,
+      quizRepository,
+      quizAttemptRepository,
+      submissionRepository,
+      discussionRepository
+    );
     const noteService = new NoteService(noteRepository, courseRepository);
     const discussionService = new DiscussionService(discussionRepository, courseRepository);
     const submissionService = new AssignmentSubmissionService(submissionRepository, courseContentRepository);
@@ -168,7 +184,8 @@ class App {
     const quizService = new QuizService(quizRepository, quizAttemptRepository, courseContentRepository);
 
     // middlware
-    const authMiddleware = new AuthMiddleware(cryptoService);
+    const authMiddleware = new AuthMiddleware(cryptoService, userRepository);
+    const courseAccessMiddleware = new CourseAccessMiddleware(courseAccessService);
 
     // controllers
     const authController = new AuthController(authService);
@@ -197,17 +214,20 @@ class App {
       statsController,
       badgeController,
       quizController,
-      submissionController
+      submissionController,
+      courseAccessMiddleware
     );
-    const courseRouter = new CourseRouter(courseController, authMiddleware, discussionController);
-    const noteRouter = new NoteRouter(noteController, authMiddleware);
-    const assignmentRouter = new AssignmentRouter(submissionController, authMiddleware);
+    const courseRouter = new CourseRouter(courseController, authMiddleware, discussionController, courseAccessMiddleware);
+    const noteRouter = new NoteRouter(noteController, authMiddleware, courseAccessMiddleware);
+    const assignmentRouter = new AssignmentRouter(submissionController, authMiddleware, courseAccessMiddleware);
     const certificateRouter = new CertificateRouter(certificateController, authMiddleware);
     const badgeRouter = new BadgeRouter(badgeController, authMiddleware);
-    const progressRouter = new ProgressRouter(progressController, authMiddleware);
+    const progressRouter = new ProgressRouter(progressController, authMiddleware, courseAccessMiddleware);
     const notificationRouter = new NotificationRouter(notificationController, authMiddleware);
-    const quizRouter = new QuizRouter(quizController, authMiddleware);
+    const quizRouter = new QuizRouter(quizController, authMiddleware, courseAccessMiddleware);
+    const publicRouter = new PublicRouter(courseController);
 
+    this.instance.use("/public", publicRouter.getRouter());
     this.instance.use("/auth", authRouter.getRouter());
     this.instance.use("/admin", adminRouter.getRouter());
     this.instance.use("/courses", courseRouter.getRouter());

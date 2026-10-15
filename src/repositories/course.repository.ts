@@ -9,6 +9,7 @@ export interface ICourseRepository {
   create(courseData: Partial<ICourse>): Promise<ICourse>;
   findById(id: string): Promise<ICourse | null>;
   findAll(filter?: CourseFilter): Promise<ICourse[]>;
+  findPaginated(filter: CourseFilter & { page: number; limit: number }): Promise<{ items: ICourse[]; total: number }>;
   update(id: string, updateData: Partial<ICourse>): Promise<ICourse | null>;
   delete(id: string): Promise<void>;
   
@@ -20,6 +21,11 @@ export interface ICourseRepository {
   // Enrollment
   enrollStudent(enrollmentData: Partial<IEnrollment>): Promise<IEnrollment>;
   findEnrollment(studentId: string, courseId: string): Promise<IEnrollment | null>;
+  findEnrollmentsByStudent(studentId: string): Promise<IEnrollment[]>;
+  updateEnrollmentAccess(
+    enrollmentId: string,
+    access: { accessStartsAt?: Date; accessExpiresAt: Date | null }
+  ): Promise<IEnrollment | null>;
   getEnrolledStudents(courseId: string): Promise<any[]>;
   getStudentEnrollments(studentId: string): Promise<any[]>;
   updateEnrollmentStatus(enrollmentId: string, status: EnrollmentStatus): Promise<IEnrollment | null>;
@@ -27,6 +33,7 @@ export interface ICourseRepository {
   
   // Instructor Assignment
   assignInstructor(assignmentData: Partial<IInstructorAssignment>): Promise<IInstructorAssignment>;
+  findAssignedCourseIds(instructorId: string): Promise<string[]>;
   removeInstructor(instructorId: string, courseId: string): Promise<void>;
   getCourseInstructors(courseId: string): Promise<any[]>;
   updateInstructorRole(instructorId: string, courseId: string, role: InstructorRole): Promise<IInstructorAssignment | null>;
@@ -58,18 +65,29 @@ export class CourseRepository implements ICourseRepository {
     return await this.courseModel.findById(id).exec();
   }
 
-  public async findAll(filter: CourseFilter = {}): Promise<ICourse[]> {
-    const query: any = {};
-    
+  private buildCourseQuery(filter: CourseFilter): Record<string, unknown> {
+    const query: Record<string, unknown> = {};
+
     if (filter.status) query.status = filter.status;
+    else if (filter.statusNot) query.status = { $ne: filter.statusNot };
     if (filter.level) query.level = filter.level;
+    if (filter.courseType) query.courseType = filter.courseType;
     if (filter.createdBy) query.createdBy = filter.createdBy;
+    if (filter.courseIds) query._id = { $in: filter.courseIds };
     if (filter.search) {
+      // Escape regex metacharacters so user input is matched literally
+      const pattern = filter.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       query.$or = [
-        { title: { $regex: filter.search, $options: 'i' } },
-        { description: { $regex: filter.search, $options: 'i' } }
+        { title: { $regex: pattern, $options: 'i' } },
+        { description: { $regex: pattern, $options: 'i' } }
       ];
     }
+
+    return query;
+  }
+
+  public async findAll(filter: CourseFilter = {}): Promise<ICourse[]> {
+    const query = this.buildCourseQuery(filter);
 
     let findQuery = this.courseModel.find(query).sort({ createdAt: -1 });
     
@@ -79,6 +97,22 @@ export class CourseRepository implements ICourseRepository {
     }
     
     return await findQuery.exec();
+  }
+
+  public async findPaginated(
+    filter: CourseFilter & { page: number; limit: number }
+  ): Promise<{ items: ICourse[]; total: number }> {
+    const query = this.buildCourseQuery(filter);
+    const [items, total] = await Promise.all([
+      this.courseModel
+        .find(query)
+        .sort({ createdAt: -1 })
+        .skip((filter.page - 1) * filter.limit)
+        .limit(filter.limit)
+        .exec(),
+      this.courseModel.countDocuments(query).exec(),
+    ]);
+    return { items, total };
   }
 
   public async update(id: string, updateData: Partial<ICourse>): Promise<ICourse | null> {
@@ -170,6 +204,19 @@ export class CourseRepository implements ICourseRepository {
       .exec();
   }
 
+  public async findEnrollmentsByStudent(studentId: string): Promise<IEnrollment[]> {
+    return await this.enrollmentModel.find({ student: studentId }).exec();
+  }
+
+  public async updateEnrollmentAccess(
+    enrollmentId: string,
+    access: { accessStartsAt?: Date; accessExpiresAt: Date | null }
+  ): Promise<IEnrollment | null> {
+    return await this.enrollmentModel
+      .findByIdAndUpdate(enrollmentId, { $set: access }, { new: true })
+      .exec();
+  }
+
   public async getEnrolledStudents(courseId: string): Promise<any[]> {
     return await this.enrollmentModel
       .find({ course: courseId })
@@ -224,6 +271,14 @@ export class CourseRepository implements ICourseRepository {
     }
 
     return await this.instructorAssignmentModel.create(assignmentData);
+  }
+
+  public async findAssignedCourseIds(instructorId: string): Promise<string[]> {
+    const assignments = await this.instructorAssignmentModel
+      .find({ instructor: instructorId, status: AssignmentStatus.ACTIVE })
+      .select('course')
+      .lean();
+    return assignments.map((a) => a.course.toString());
   }
 
   public async removeInstructor(instructorId: string, courseId: string): Promise<void> {

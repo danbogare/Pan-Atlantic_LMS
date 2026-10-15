@@ -2,7 +2,14 @@
 import { Request, Response } from "express";
 import { ICourseService } from "../services/course.service";
 import { createdSuccessResponse, successResponse } from "../utils/response";
-import { CreateCourseInput } from "../validators/course.validator";
+import {
+  CreateCourseInput,
+  EnrollInCourseInput,
+  ExtendAccessInput,
+  courseListQuerySchema,
+  publicCourseListQuerySchema,
+} from "../validators/course.validator";
+import { parseQuery } from "../utils/query";
 import { CreateCoursePayload } from "../interfaces/course.interface";
 
 export interface ICourseController {
@@ -29,7 +36,14 @@ export interface ICourseController {
   getCourseWithInstructors: (req: Request, res: Response) => Promise<void>;
   getCourseWithStudents: (req: Request, res: Response) => Promise<void>;
   getCourseStats: (req: Request, res: Response) => Promise<void>;
-  enrollStudent: (req: Request, res: Response) => Promise<void>;
+  enrollStudent: (req: Request<{ courseId: string }, {}, EnrollInCourseInput>, res: Response) => Promise<void>;
+  extendStudentAccess: (
+    req: Request<{ courseId: string; studentId: string }, {}, ExtendAccessInput>,
+    res: Response
+  ) => Promise<void>;
+
+  getPublicCourses: (req: Request, res: Response) => Promise<void>;
+  getPublicCourseDetails: (req: Request, res: Response) => Promise<void>;
 }
 
 export class CourseController implements ICourseController {
@@ -40,13 +54,15 @@ export class CourseController implements ICourseController {
   public createCourse = async (req: Request<{}, {}, CreateCourseInput>, res: Response): Promise<void> => {
     const adminId = req.user?.id as string;
     const thumbnailFile = req.file as Express.Multer.File | undefined;
-    const {title, description, level, duration, prerequisites, learningObjectives, instructorIds} = req.body;
+    const {title, description, level, courseType, duration, price, prerequisites, learningObjectives, instructorIds} = req.body;
 
     const data: CreateCoursePayload = {
       title,
       description,
       level,
+      courseType,
       duration,
+      price,
       prerequisites,
       learningObjectives,
       instructorIds,
@@ -64,18 +80,23 @@ export class CourseController implements ICourseController {
     successResponse(res, "Course details retrieved successfully", course);
   };
 
+  // Scoped by role: admin sees all, instructors their assigned courses, students their enrollments
   public getAllCourses = async (req: Request, res: Response): Promise<void> => {
-    const { status, level, search, page, limit } = req.query;
-    
-    const courses = await this.courseService.getAllCourses({
-      status: status as any,
-      level: level as any,
-      search: search as string,
-      page: page ? Number(page) : undefined,
-      limit: limit ? Number(limit) : undefined,
-    });
-
+    const filter = parseQuery(courseListQuerySchema, req.query);
+    const courses = await this.courseService.getCoursesForUser(req.user!, filter);
     successResponse(res, "Courses retrieved successfully", courses);
+  };
+
+  public getPublicCourses = async (req: Request, res: Response): Promise<void> => {
+    const query = parseQuery(publicCourseListQuerySchema, req.query);
+    const courses = await this.courseService.getPublicCourses(query);
+    successResponse(res, "Courses retrieved successfully", courses);
+  };
+
+  public getPublicCourseDetails = async (req: Request, res: Response): Promise<void> => {
+    const { courseId } = req.params;
+    const course = await this.courseService.getPublicCourseDetails(courseId as string);
+    successResponse(res, "Course details retrieved successfully", course);
   };
 
   public updateCourse = async (req: Request, res: Response): Promise<void> => {
@@ -201,12 +222,21 @@ export class CourseController implements ICourseController {
     successResponse(res, "Course stats retrieved successfully", stats);
   };
 
-  public enrollStudent = async (req: Request, res: Response): Promise<void> => {
+  public enrollStudent = async (req: Request<{ courseId: string }, {}, EnrollInCourseInput>, res: Response): Promise<void> => {
     const { courseId } = req.params;
     const { studentId } = req.body;
     const adminId = req.user?.id as string;
 
-    const enrollment = await this.courseService.enrollStudent(courseId as string, studentId, adminId);
+    const enrollment = await this.courseService.enrollStudent(courseId, studentId, adminId);
     createdSuccessResponse(res, "Student enrolled successfully", enrollment);
+  };
+
+  public extendStudentAccess = async (
+    req: Request<{ courseId: string; studentId: string }, {}, ExtendAccessInput>,
+    res: Response
+  ): Promise<void> => {
+    const { courseId, studentId } = req.params;
+    const access = await this.courseService.extendStudentAccess(courseId, studentId, req.body.days);
+    successResponse(res, "Student access updated successfully", access);
   };
 }

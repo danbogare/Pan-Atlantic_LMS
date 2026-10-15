@@ -1,7 +1,8 @@
 // src/openapi/admin.docs.ts
 import { z } from "zod";
-import { registry, bearerAuth, successEnvelope, errorResponses, pick } from "./registry";
+import { registry, bearerAuth, successEnvelope, errorResponses, pick, jsonContent, ErrorResponseSchema } from "./registry";
 import { enrollStudentSchema } from "../validators/student.validator";
+import { inviteInstructorSchema } from "../validators/instructor.validator";
 import { updateUserInfoSchema } from "../validators/user.validator";
 import { createNotificationSchema, broadcastNotificationSchema } from "../validators/notification.validator";
 
@@ -16,9 +17,14 @@ export function registerAdminDocs() {
     path: "/admin/student/enroll",
     tags: ["Admin"],
     security: [{ [bearerAuth.name]: [] }],
+    description:
+      "No password is sent: the system generates a temporary password, emails it only to the new user (it is never returned to the admin), " +
+      "and sets `mustChangePassword: true`. " +
+      "Duplicate course IDs are ignored; if enrollment fails nothing is created.",
     request: { body: { content: { "application/json": { schema: enrollStudentSchema } } } },
     responses: {
       201: successEnvelope(EmptyDataSchema, "Invite email sent successfully"),
+      404: jsonContent(ErrorResponseSchema, "One of the courses was not found"),
       ...pick(errorResponses, 400, 401, 403, 409),
     },
   });
@@ -28,11 +34,14 @@ export function registerAdminDocs() {
     path: "/admin/instructor/invite",
     tags: ["Admin"],
     security: [{ [bearerAuth.name]: [] }],
-    // Reuses enrollStudentSchema — same input shape (firstName/lastName/email/
-    // assignedCourseIds) for inviting an instructor, per your controller.
-    request: { body: { content: { "application/json": { schema: enrollStudentSchema } } } },
+    description:
+      "No password is sent: the system generates a temporary password, emails it only to the new user (it is never returned to the admin), " +
+      "and sets `mustChangePassword: true`. " +
+      "Duplicate course IDs are ignored; if assignment fails nothing is created.",
+    request: { body: { content: { "application/json": { schema: inviteInstructorSchema } } } },
     responses: {
       201: successEnvelope(EmptyDataSchema, "Invite email sent successfully"),
+      404: jsonContent(ErrorResponseSchema, "One of the courses was not found"),
       ...pick(errorResponses, 400, 401, 403, 409),
     },
   });

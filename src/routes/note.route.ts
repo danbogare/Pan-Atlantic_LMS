@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { INoteController } from "../controllers/note.controller";
 import { IAuthMiddleware } from "../middlewares/auth.middleware";
+import { ICourseAccessMiddleware } from "../middlewares/course-access.middleware";
 import { asyncHandler } from "../middlewares/async-handler.middleware";
 import { validate } from "../middlewares/validation.middleware";
 import { createNoteSchema } from "../validators/note.validator";
@@ -10,7 +11,8 @@ export class NoteRouter {
 
   constructor(
     private readonly noteController: INoteController,
-    private readonly authMiddleware: IAuthMiddleware
+    private readonly authMiddleware: IAuthMiddleware,
+    private readonly courseAccess: ICourseAccessMiddleware
   ) {
     this.initializeRoutes();
   }
@@ -27,6 +29,7 @@ export class NoteRouter {
     this.router.post(
       "/",
       validate(createNoteSchema),
+      asyncHandler(this.courseAccess.requireLearnAccess(this.courseAccess.fromBody("courseId"))),
       asyncHandler(this.noteController.addNote)
     );
 

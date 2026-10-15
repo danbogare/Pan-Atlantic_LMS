@@ -2,12 +2,13 @@ import { Request, Response } from "express";
 import { IUserService } from "../services/user.service";
 import { createdSuccessResponse, successResponse } from "../utils/response";
 import { EnrollStudentInput } from "../validators/student.validator";
-import { EnrollStudentPayload } from "../interfaces/user.interface";
+import { EnrollStudentPayload, InviteInstructorPayload } from "../interfaces/user.interface";
+import { InviteInstructorInput } from "../validators/instructor.validator";
 import { UpdateUserInfoInput } from "../validators/user.validator";
 
 export interface IUserController {
   enrollStudent: (req: Request<{}, {}, EnrollStudentInput>, res: Response) => Promise<void>;
-  inviteInstructor: (req: Request<{}, {}, EnrollStudentInput>, res: Response) => Promise<void>;
+  inviteInstructor: (req: Request<{}, {}, InviteInstructorInput>, res: Response) => Promise<void>;
   updateUserInfo: (req: Request<{ id: string }, {}, UpdateUserInfoInput>, res: Response) => Promise<void>;
   getAllStudents: (req: Request, res: Response) => Promise<void>;
   getAllInstructors: (req: Request, res: Response) => Promise<void>;
@@ -32,17 +33,17 @@ export class UserController implements IUserController {
     createdSuccessResponse(res, "invite email sent successfully.", {});
   };
   
-  public inviteInstructor = async (req: Request<{}, {}, EnrollStudentInput>, res: Response): Promise<void> => {
+  public inviteInstructor = async (req: Request<{}, {}, InviteInstructorInput>, res: Response): Promise<void> => {
     const { firstName, lastName, email, assignedCourseIds } = req.body;
     const assignedById = req.user?.id as string;
 
-    const enrollmentdata: EnrollStudentPayload = {
+    const invitationData: InviteInstructorPayload = {
       firstName,
       lastName,
       email,
       courseIds: assignedCourseIds
     }
-    await this.userService.inviteInstructor(enrollmentdata, assignedById);
+    await this.userService.inviteInstructor(invitationData, assignedById);
 
     createdSuccessResponse(res, "invite email sent successfully.", {});
   };

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { IAssignmentSubmissionController } from "../controllers/assignment.controller";
 import { IAuthMiddleware } from "../middlewares/auth.middleware";
+import { ICourseAccessMiddleware } from "../middlewares/course-access.middleware";
 import { asyncHandler } from "../middlewares/async-handler.middleware";
 import { validate } from "../middlewares/validation.middleware";
 import { submitAssignmentSchema } from "../validators/assignment.validator";
@@ -10,7 +11,8 @@ export class AssignmentRouter {
 
   constructor(
     private readonly submissionController: IAssignmentSubmissionController,
-    private readonly authMiddleware: IAuthMiddleware
+    private readonly authMiddleware: IAuthMiddleware,
+    private readonly courseAccess: ICourseAccessMiddleware
   ) {
     this.initializeRoutes();
   }
@@ -37,6 +39,7 @@ export class AssignmentRouter {
     this.router.post(
       "/lessons/:lessonId/submit",
       validate(submitAssignmentSchema),
+      asyncHandler(this.courseAccess.requireLearnAccess(this.courseAccess.fromLessonParam("lessonId"))),
       asyncHandler(this.submissionController.submitAssignment)
     );
   }

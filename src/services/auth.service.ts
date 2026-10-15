@@ -106,7 +106,13 @@ export class AuthService implements IAuthService {
       purpose: OtpPurpose.PASSWORD_RESET,
     });
 
-    void this.mailService.sendPasswordResetEmail(email, user.firstName, rawOtp);
+    // Send in the background; MailService logs failures. If sending fails, drop the OTP so the
+    // user can request a new code immediately instead of waiting for this one to expire.
+    this.mailService.sendPasswordResetEmail(user.email, user.firstName, rawOtp).catch(async () => {
+      await this.otpRepository.deleteMany(user.id, OtpPurpose.PASSWORD_RESET).catch((error) => {
+        console.error(`Failed to clear unsent OTP for userId: ${user.id}:`, error);
+      });
+    });
     console.log(`Password reset OTP generated and dispatched for userId: ${user.id}`);
   }
 

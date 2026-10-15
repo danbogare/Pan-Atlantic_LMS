@@ -5,6 +5,8 @@ import { IMailService } from "./mail.service";
 import { UserExistsError, CourseNotFoundError } from "../errors/error";
 import { ICryptoService } from "./crypto.service";
 import { Types } from "mongoose";
+import { ICourse } from "../models/course.model";
+import { computeAccessWindow } from "../utils/course-access";
 import { InviteInstructorPayload, EnrollStudentPayload, IStudentWithCourses, IInstructorWithCourses } from "../interfaces/user.interface";
 
 export interface IUserService {
@@ -33,7 +35,8 @@ export class UserService implements IUserService {
   ) {}
 
   public async inviteStudent(data: EnrollStudentPayload, enrolledBy: string): Promise<void> {
-    const { firstName, lastName, email, courseIds } = data;
+    const { firstName, lastName, email } = data;
+    const courseIds = this.uniqueIds(data.courseIds);
 
     // Check if user exists
     const existingUser = await this.userRepository.findByEmail(email);
@@ -42,9 +45,7 @@ export class UserService implements IUserService {
     }
 
     // If courses specified, validate they exist
-    if (courseIds && courseIds.length > 0) {
-      await this.validateCourses(courseIds);
-    }
+    const courses = courseIds.length > 0 ? await this.validateCourses(courseIds) : [];
 
     // Create user
     const tempPassword = this.cryptoService.generateTempPass();
@@ -60,17 +61,21 @@ export class UserService implements IUserService {
     });
 
     // Enroll in courses if specified
-    if (courseIds && courseIds.length > 0) {
-      await this.enrollStudentInCourses(user._id.toString(), courseIds, enrolledBy);
+    if (courses.length > 0) {
+      await this.rollbackOnFailure(user.id, () =>
+        this.enrollStudentInCourses(user.id, courses, enrolledBy)
+      );
     }
 
-    // Send email
-    void this.mailService.sendStudentInviteEmail(email, firstName, tempPassword);
-    console.log(`Student ${email} created${courseIds ? ' and enrolled in courses' : ''}`);
+    // Send email in the background; a failure is logged by MailService and must not crash the process.
+    // The student can still get in through the forgot-password flow.
+    this.mailService.sendStudentInviteEmail(email, firstName, tempPassword).catch(() => undefined);
+    console.log(`Student ${email} created${courseIds.length > 0 ? ' and enrolled in courses' : ''}`);
   }
 
   public async inviteInstructor(data: InviteInstructorPayload, assignedBy: string): Promise<void> {
-    const { firstName, lastName, email, courseIds } = data;
+    const { firstName, lastName, email } = data;
+    const courseIds = this.uniqueIds(data.courseIds);
 
     // Check if user exists
     const existingUser = await this.userRepository.findByEmail(email);
@@ -79,7 +84,7 @@ export class UserService implements IUserService {
     }
 
     // If courses specified, validate they exist
-    if (courseIds && courseIds.length > 0) {
+    if (courseIds.length > 0) {
       await this.validateCourses(courseIds);
     }
 
@@ -97,13 +102,15 @@ export class UserService implements IUserService {
     });
 
     // Assign to courses if specified
-    if (courseIds && courseIds.length > 0) {
-      await this.assignInstructorToCourses(user._id.toString(), courseIds, assignedBy);
+    if (courseIds.length > 0) {
+      await this.rollbackOnFailure(user.id, () =>
+        this.assignInstructorToCourses(user.id, courseIds, assignedBy)
+      );
     }
 
-    // Send email
-    void this.mailService.sendInstructorInviteEmail(email, firstName, tempPassword);
-    console.log(`Instructor ${email} created${courseIds ? ' and assigned to courses' : ''}`);
+    // Send email in the background; a failure is logged by MailService and must not crash the process
+    this.mailService.sendInstructorInviteEmail(email, firstName, tempPassword).catch(() => undefined);
+    console.log(`Instructor ${email} created${courseIds.length > 0 ? ' and assigned to courses' : ''}`);
   }
 
   public async getAllInstructors(): Promise<IUser[]> {
@@ -131,25 +138,50 @@ export class UserService implements IUserService {
   }
 
   // Private helper methods
-  private async validateCourses(courseIds: string[]): Promise<void> {
+  private uniqueIds(ids?: string[]): string[] {
+    return [...new Set(ids ?? [])];
+  }
+
+  // Deletes a just-created user if a follow-up step fails, so onboarding is all-or-nothing
+  // (Mongo transactions would need a replica set, which local/standalone setups don't have).
+  private async rollbackOnFailure(userId: string, step: () => Promise<void>): Promise<void> {
+    try {
+      await step();
+    } catch (error) {
+      await this.userRepository.deleteWithRelations(userId).catch((cleanupError) => {
+        console.error(`Failed to roll back user ${userId}:`, cleanupError);
+      });
+      throw error;
+    }
+  }
+
+  private async validateCourses(courseIds: string[]): Promise<ICourse[]> {
+    const courses: ICourse[] = [];
     for (const courseId of courseIds) {
+      if (!Types.ObjectId.isValid(courseId)) {
+        throw new CourseNotFoundError(`Course ${courseId} not found`);
+      }
       const course = await this.courseRepository.findById(courseId);
       if (!course) {
         throw new CourseNotFoundError(`Course ${courseId} not found`);
       }
+      courses.push(course);
     }
+    return courses;
   }
 
   private async enrollStudentInCourses(
     studentId: string, 
-    courseIds: string[],
+    courses: ICourse[],
     enrolledBy: string,
   ): Promise<void> {
-    for (const courseId of courseIds) {
+    for (const course of courses) {
       await this.courseRepository.enrollStudent({
         student: new Types.ObjectId(studentId),
-        course: new Types.ObjectId(courseId),
-        enrolledBy: new Types.ObjectId(enrolledBy) // Or pass admin ID
+        course: course._id as Types.ObjectId,
+        enrolledBy: new Types.ObjectId(enrolledBy),
+        // Access clock starts the day after enrollment (Africa/Lagos)
+        ...computeAccessWindow(course.duration ?? 0),
       });
     }
   }

@@ -10,3 +10,9 @@ export interface IAuthUser {
   user: IUser;
   accessToken: string;
 }
+export interface IUserAuthState {
+  email: string;
+  role: UserRole;
+  isActive: boolean;
+  mustChangePassword: boolean;
+}

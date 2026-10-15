@@ -1,9 +1,19 @@
 import { Schema, model, Document, Types } from 'mongoose';
+import { hasAtMostTwoDecimals } from '../utils/money';
 
 export enum CourseStatus {
   DRAFT = 'draft',
   PUBLISHED = 'published',
   ARCHIVED = 'archived',
+}
+
+export enum CourseType {
+  PROFESSIONAL = 'professional',
+  ACADEMIC = 'academic',
+}
+
+export enum Currency {
+  NGN = 'NGN',
 }
 
 export enum CourseLevel {
@@ -34,8 +44,13 @@ export interface ICourse extends Document {
   description: string;
   thumbnail?: string;
   level: CourseLevel;
+  courseType: CourseType;
   status: CourseStatus;
+  // Access period in days, counted from the day after enrollment; 0 = no expiry
   duration: number;
+  // In naira, at most 2 decimal places; 0 = free
+  price: number;
+  currency: Currency;
   prerequisites?: string[];
   learningObjectives?: string[];
   createdBy: Types.ObjectId;
@@ -55,12 +70,33 @@ const CourseSchema = new Schema<ICourse>(
       enum: Object.values(CourseLevel), 
       default: CourseLevel.BEGINNER 
     },
+    courseType: {
+      type: String,
+      enum: Object.values(CourseType),
+      required: true,
+    },
     status: { 
       type: String, 
       enum: Object.values(CourseStatus), 
       default: CourseStatus.DRAFT 
     },
-    duration: { type: Number, required: true, min: 0 },
+    duration: {
+      type: Number,
+      default: 0,
+      min: 0,
+      validate: { validator: Number.isInteger, message: 'Duration must be a whole number of days' },
+    },
+    price: {
+      type: Number,
+      default: 0,
+      min: 0,
+      validate: { validator: hasAtMostTwoDecimals, message: 'Price can have at most 2 decimal places' },
+    },
+    currency: {
+      type: String,
+      enum: Object.values(Currency),
+      default: Currency.NGN,
+    },
     prerequisites: [{ type: String }],
     learningObjectives: [{ type: String }],
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
@@ -71,6 +107,7 @@ const CourseSchema = new Schema<ICourse>(
 );
 
 CourseSchema.index({ status: 1, createdAt: -1 });
+CourseSchema.index({ courseType: 1, status: 1 });
 CourseSchema.index({ title: 'text', description: 'text' });
 
 // ENROLLMENT SCHEMA
@@ -79,6 +116,10 @@ export interface IEnrollment extends Document {
   course: Types.ObjectId;
   enrolledAt: Date;
   enrolledBy: Types.ObjectId;
+  // Start of the day after enrollment (Africa/Lagos); absent on enrollments created before access periods existed
+  accessStartsAt?: Date;
+  // null/absent = no expiry
+  accessExpiresAt?: Date | null;
   progress: number;
   completedAt?: Date;
   status: EnrollmentStatus;
@@ -92,6 +133,8 @@ const EnrollmentSchema = new Schema<IEnrollment>(
     course: { type: Types.ObjectId, ref: 'Course', required: true },
     enrolledAt: { type: Date, default: Date.now },
     enrolledBy: { type: Types.ObjectId, ref: 'User', required: true },
+    accessStartsAt: { type: Date },
+    accessExpiresAt: { type: Date, default: null },
     progress: { type: Number, default: 0, min: 0, max: 100 },
     completedAt: { type: Date },
     status: { 

@@ -4,7 +4,8 @@ import { dbManager } from "./config/database";
 import { seedAdmin } from "./seeders/admin.seeder";
 import { User } from "./models/user.model";
 import { UserRepository } from "./repositories/user.repository";
-import { Enrollment, InstructorAssignment } from "./models/course.model";
+import { Course, Enrollment, InstructorAssignment } from "./models/course.model";
+import { backfillCourseDefaults } from "./migrations/course-defaults.migration";
 
 async function bootstrap() {
   try {
@@ -14,6 +15,13 @@ async function bootstrap() {
     // Seed default admin account (idempotent — safe to run every boot)
     const userRepository = new UserRepository(User, Enrollment, InstructorAssignment);
     await seedAdmin(userRepository, env.admin);
+
+    // Fill new course fields (courseType, price, currency) on courses created before they existed
+    await backfillCourseDefaults(Course);
+
+    if (env.nodeEnv === "production" && !process.env.MAIL_FROM) {
+      console.warn("MAIL_FROM is not set; outgoing emails will use a placeholder sender and may be rejected.");
+    }
 
     // Initialize app (Express setup only)
     const app = new App();

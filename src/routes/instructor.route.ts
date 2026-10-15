@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { IAuthMiddleware } from "../middlewares/auth.middleware";
+import { ICourseAccessMiddleware } from "../middlewares/course-access.middleware";
 import { IStatsController } from "../controllers/stats.controller";
 import { asyncHandler } from "../middlewares/async-handler.middleware";
 import { IAssignmentSubmissionController } from "../controllers/assignment.controller";
@@ -18,7 +19,8 @@ export class InstructorRouter {
         private readonly statsController: IStatsController,
         private readonly badgeController: IBadgeController,
         private readonly quizController: IQuizController,
-        private readonly submissionController: IAssignmentSubmissionController
+        private readonly submissionController: IAssignmentSubmissionController,
+        private readonly courseAccess: ICourseAccessMiddleware
     ) {
         this.router.use(asyncHandler(this.authMiddleware.requireAuth));
         this.router.use(asyncHandler(this.authMiddleware.requireInstructor));
@@ -47,6 +49,7 @@ export class InstructorRouter {
         this.router.put(
             "/assignments/submissions/:submissionId/grade",
             validate(gradeSubmissionSchema),
+            asyncHandler(this.courseAccess.requireManageAccess(this.courseAccess.fromSubmissionParam("submissionId"))),
             asyncHandler(this.submissionController.gradeSubmission)
         );
     }
@@ -55,11 +58,13 @@ export class InstructorRouter {
         this.router.post(
         "/quizzes/lessons/:lessonId",
         validate(createQuizSchema),
+        asyncHandler(this.courseAccess.requireManageAccess(this.courseAccess.fromLessonParam("lessonId"))),
         asyncHandler(this.quizController.createQuiz)
         );
         this.router.put(
         "/quizzes/attempts/:attemptId/grade",
         validate(gradeFreeTextSchema),
+        asyncHandler(this.courseAccess.requireManageAccess(this.courseAccess.fromAttemptParam("attemptId"))),
         asyncHandler(this.quizController.gradeFreeTextAnswer)
         );
     }

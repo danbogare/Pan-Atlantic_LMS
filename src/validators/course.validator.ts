@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { Types } from "mongoose";
 import {
   requiredTitle,
   optionalTitle,
@@ -9,8 +10,20 @@ import {
   optionalBoolean,
   optionalStringArray,
   urlOrEmpty,
+  optionalNonNegativeInteger,
+  nonNegativeIntegerWithDefault,
+  nonNegativeMoneyWithDefault,
+  optionalNonNegativeMoney,
 } from "./common.validator";
-import { CourseLevel } from "../models/course.model";
+import { CourseLevel, CourseStatus, CourseType } from "../models/course.model";
+
+const courseTypeField = z
+  .enum(CourseType, { error: "Course type must be professional or academic" })
+  .openapi({ example: "professional", description: "professional or academic" });
+
+const durationDescription =
+  "Access period in days, counted from the day after a student is enrolled. 0 = access never expires.";
+const priceDescription = "Course price in naira (NGN), up to 2 decimal places, e.g. 25000 or 25000.50. 0 = free.";
 
 // CREATE COURSE SCHEMA
 export const createCourseSchema = z.object({
@@ -29,7 +42,11 @@ export const createCourseSchema = z.object({
     .default(CourseLevel.BEGINNER)
     .openapi({ example: "either of beginner, intermediate, or advanced" }),
 
-  duration: requiredNonNegativeNumber("Duration"),
+  courseType: courseTypeField,
+
+  duration: nonNegativeIntegerWithDefault("Duration", 0).openapi({ description: durationDescription }),
+
+  price: nonNegativeMoneyWithDefault("Price", 0).openapi({ description: priceDescription, example: 25000 }),
 
   prerequisites: optionalStringArray(),
   learningObjectives: optionalStringArray(),
@@ -56,7 +73,11 @@ export const updateCourseSchema = z.object({
     .optional()
     .openapi({ example: "either of beginner, intermediate, or advanced" }),
 
-  duration: optionalNonNegativeNumber("Duration"),
+  courseType: courseTypeField.optional(),
+
+  duration: optionalNonNegativeInteger("Duration").openapi({ description: durationDescription }),
+
+  price: optionalNonNegativeMoney("Price").openapi({ description: priceDescription, example: 25000 }),
 
   prerequisites: optionalStringArray(),
   learningObjectives: optionalStringArray(),
@@ -64,6 +85,43 @@ export const updateCourseSchema = z.object({
 });
 
 export type UpdateCourseInput = z.infer<typeof updateCourseSchema>;
+
+// COURSE LIST QUERY (query strings always arrive as strings, hence coerce)
+export const courseListQuerySchema = z.object({
+  courseType: z.enum(CourseType, { error: "courseType must be professional or academic" }).optional(),
+  level: z.enum(CourseLevel, { error: "level must be beginner, intermediate, or advanced" }).optional(),
+  status: z.enum(CourseStatus, { error: "status must be draft, published, or archived" }).optional(),
+  search: z.string().trim().max(100, { error: "search must be at most 100 characters" }).optional(),
+  page: z.coerce.number({ error: "page must be a number" }).int().min(1, { error: "page must be at least 1" }).optional(),
+  limit: z.coerce
+    .number({ error: "limit must be a number" })
+    .int()
+    .min(1, { error: "limit must be at least 1" })
+    .max(100, { error: "limit must be at most 100" })
+    .optional(),
+});
+
+export type CourseListQuery = z.infer<typeof courseListQuerySchema>;
+
+// Public catalog never exposes drafts/archived courses, so status is not accepted
+export const publicCourseListQuerySchema = courseListQuerySchema.omit({ status: true });
+
+export type PublicCourseListQuery = z.infer<typeof publicCourseListQuerySchema>;
+
+// EXTEND / RENEW A STUDENT'S ACCESS
+export const extendAccessSchema = z.object({
+  days: z
+    .number({ error: "days must be a number" })
+    .int({ error: "days must be a whole number" })
+    .min(0, { error: "days cannot be negative" })
+    .openapi({
+      example: 30,
+      description:
+        "Days to add. Active access is extended from its current expiry; expired access restarts from the next day (Africa/Lagos). 0 = remove the expiry (unlimited).",
+    }),
+});
+
+export type ExtendAccessInput = z.infer<typeof extendAccessSchema>;
 
 // CREATE MODULE SCHEMA
 export const createModuleSchema = z.object({
@@ -151,3 +209,10 @@ export const reorderLessonsSchema = z.object({
     })
   ),
 });
+
+// ENROLL A STUDENT IN A COURSE
+export const enrollInCourseSchema = z.object({
+  studentId: idField("Student ID").refine((id) => Types.ObjectId.isValid(id), { error: "Student ID is invalid" }),
+});
+
+export type EnrollInCourseInput = z.infer<typeof enrollInCourseSchema>;

@@ -36,8 +36,30 @@ export class CryptoService implements ICryptoService {
     return jwt.verify(token, this.jwtSecret) as IAuthUserPayload;
   }
 
-  public generateTempPass(): string {
-    return `PA.LMS-${crypto.randomBytes(4).toString("hex")}`
+  // 16 random chars (~95 bits) with at least one of each character class, so it also meets the
+  // password policy. Look-alike characters (0/O, 1/l/I) and HTML-sensitive ones (&, <, >) are left
+  // out because users copy it from an HTML email.
+  public generateTempPass(length: number = 16): string {
+    const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    const lower = "abcdefghijkmnopqrstuvwxyz";
+    const digits = "23456789";
+    const symbols = "!@#$%*-_+=?";
+    const all = upper + lower + digits + symbols;
+
+    const pick = (charset: string): string => charset[crypto.randomInt(charset.length)]!;
+
+    const chars = [pick(upper), pick(lower), pick(digits), pick(symbols)];
+    while (chars.length < length) {
+      chars.push(pick(all));
+    }
+
+    // Fisher-Yates shuffle so the guaranteed characters aren't always at the start
+    for (let i = chars.length - 1; i > 0; i--) {
+      const j = crypto.randomInt(i + 1);
+      [chars[i], chars[j]] = [chars[j]!, chars[i]!];
+    }
+
+    return chars.join("");
   }
   
   public generateOTP(): string {

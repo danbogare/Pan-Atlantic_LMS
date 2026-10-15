@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { IProgressController } from "../controllers/progress.controller";
 import { IAuthMiddleware } from "../middlewares/auth.middleware";
+import { ICourseAccessMiddleware } from "../middlewares/course-access.middleware";
 import { asyncHandler } from "../middlewares/async-handler.middleware";
 import { validate } from "../middlewares/validation.middleware";
 import { markLessonCompleteSchema } from "../validators/progress.validator";
@@ -10,7 +11,8 @@ export class ProgressRouter {
 
   constructor(
     private readonly progressController: IProgressController,
-    private readonly authMiddleware: IAuthMiddleware
+    private readonly authMiddleware: IAuthMiddleware,
+    private readonly courseAccess: ICourseAccessMiddleware
   ) {
     this.initializeRoutes();
   }
@@ -29,6 +31,7 @@ export class ProgressRouter {
     this.router.post(
       "/:courseId/lessons/complete",
       validate(markLessonCompleteSchema),
+      asyncHandler(this.courseAccess.requireLearnAccess(this.courseAccess.fromParam("courseId"))),
       asyncHandler(this.progressController.markLessonComplete)
     );
   }

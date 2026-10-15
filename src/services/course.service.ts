@@ -2,17 +2,55 @@
 import { ICourseRepository } from "../repositories/course.repository";
 import { ICourseContentRepository } from "../repositories/courseModule.repository";
 import { ICloudinaryService } from "./storage.service";
-import { CourseNotFoundError } from "../errors/error";
-import { CourseStatus, ICourse } from "../models/course.model";
+import { IUserRepository } from "../repositories/user.repository";
+import {
+  AlreadyEnrolledError,
+  BadRequestError,
+  CourseAccessDeniedError,
+  CourseNotFoundError,
+  EnrollmentNotFoundError,
+} from "../errors/error";
+import { CourseStatus, EnrollmentStatus, ICourse } from "../models/course.model";
 import { ContentType, ICourseLesson, ICourseModule } from "../models/courseModule.model";
+import { UserRole } from "../models/user.model";
 import { Types } from "mongoose";
-import { AddLesson, AddModule, CourseFilter, CreateCoursePayload, UpdateCoursePayload, UpdateLesson, UpdateModule } from "../interfaces/course.interface";
+import { AddLesson, AddModule, CourseFilter, CreateCoursePayload, PaginatedResult, UpdateCoursePayload, UpdateLesson, UpdateModule } from "../interfaces/course.interface";
+import { IAuthUserPayload } from "../interfaces/auth.interface";
+import { PublicCourseListQuery } from "../validators/course.validator";
+import { AccessSummary, addDays, computeAccessWindow, isAccessExpired, summarizeAccess } from "../utils/course-access";
+
+const PUBLIC_DEFAULT_PAGE_SIZE = 12;
+
+// Fields safe to show on the public catalog (no internal ids like createdBy)
+function toPublicCourse(course: ICourse) {
+  return {
+    _id: course._id,
+    title: course.title,
+    description: course.description,
+    thumbnail: course.thumbnail,
+    level: course.level,
+    courseType: course.courseType,
+    duration: course.duration,
+    price: course.price,
+    currency: course.currency,
+    prerequisites: course.prerequisites,
+    learningObjectives: course.learningObjectives,
+    publishedAt: course.publishedAt,
+  };
+}
+
+export type PublicCourse = ReturnType<typeof toPublicCourse>;
 
 export interface ICourseService {
   // Courses
   createCourse(adminId: string, data: CreateCoursePayload): Promise<ICourse>;
   getCourseById(courseId: string): Promise<ICourse>;
   getAllCourses(filter?: CourseFilter): Promise<ICourse[]>;
+  // Admin: every course; instructor: assigned courses; student: enrolled courses with access info
+  getCoursesForUser(user: IAuthUserPayload, filter: CourseFilter): Promise<any[]>;
+  getPublicCourses(query: PublicCourseListQuery): Promise<PaginatedResult<PublicCourse>>;
+  getPublicCourseDetails(courseId: string): Promise<any>;
+  extendStudentAccess(courseId: string, studentId: string, days: number): Promise<AccessSummary>;
   updateCourse(courseId: string, data: UpdateCoursePayload, adminId: string): Promise<ICourse | null>;
   updateThumbnail(courseId: string, file: Express.Multer.File): Promise<string>;
   deleteCourse(courseId: string): Promise<void>;
@@ -53,6 +91,7 @@ export class CourseService implements ICourseService {
     private readonly courseRepo: ICourseRepository,
     private readonly contentRepo: ICourseContentRepository,
     private readonly cloudinaryService: ICloudinaryService,
+    private readonly userRepo: IUserRepository,
   ) {}
 
   // Create a new course with optional thumbnail
@@ -72,7 +111,9 @@ export class CourseService implements ICourseService {
       description: data.description,
       thumbnail: thumbnailUrl,
       level: data.level,
+      courseType: data.courseType,
       duration: data.duration,
+      price: data.price,
       prerequisites: data.prerequisites || [],
       learningObjectives: data.learningObjectives || [],
       createdBy: new Types.ObjectId(adminId),
@@ -108,6 +149,99 @@ export class CourseService implements ICourseService {
   // Get all courses
   public async getAllCourses(filter?: CourseFilter): Promise<ICourse[]> {
     return await this.courseRepo.findAll(filter);
+  }
+
+  public async getCoursesForUser(user: IAuthUserPayload, filter: CourseFilter): Promise<any[]> {
+    if (user.role === UserRole.ADMIN) {
+      return await this.courseRepo.findAll(filter);
+    }
+
+    if (user.role === UserRole.INSTRUCTOR) {
+      const courseIds = await this.courseRepo.findAssignedCourseIds(user.id);
+      return await this.courseRepo.findAll({ ...filter, courseIds });
+    }
+
+    if (user.role === UserRole.STUDENT) {
+      const enrollments = (await this.courseRepo.findEnrollmentsByStudent(user.id))
+        .filter((e) => e.status !== EnrollmentStatus.DROPPED);
+      const enrollmentByCourse = new Map(enrollments.map((e) => [e.course.toString(), e]));
+
+      const courses = await this.courseRepo.findAll({
+        ...filter,
+        statusNot: CourseStatus.ARCHIVED,
+        courseIds: [...enrollmentByCourse.keys()],
+      });
+
+      return courses.map((course) => ({
+        ...course.toObject(),
+        access: summarizeAccess(enrollmentByCourse.get(course._id.toString())!),
+      }));
+    }
+
+    throw new CourseAccessDeniedError();
+  }
+
+  // PUBLIC CATALOG (no auth) — published courses only, no lesson content except previews
+
+  public async getPublicCourses(query: PublicCourseListQuery): Promise<PaginatedResult<PublicCourse>> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? PUBLIC_DEFAULT_PAGE_SIZE;
+
+    const { items, total } = await this.courseRepo.findPaginated({
+      ...query,
+      status: CourseStatus.PUBLISHED,
+      page,
+      limit,
+    });
+
+    return {
+      items: items.map(toPublicCourse),
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  public async getPublicCourseDetails(courseId: string): Promise<any> {
+    const course = Types.ObjectId.isValid(courseId) ? await this.courseRepo.findById(courseId) : null;
+    if (!course || course.status !== CourseStatus.PUBLISHED) {
+      throw new CourseNotFoundError(`Course ${courseId} not found`);
+    }
+
+    const [modules, instructors] = await Promise.all([
+      this.contentRepo.getFullCourseContent(courseId),
+      this.courseRepo.getCourseInstructors(courseId),
+    ]);
+
+    return {
+      ...toPublicCourse(course),
+      instructors: instructors
+        .filter((a: any) => a.instructor)
+        .map((a: any) => ({
+          firstName: a.instructor.firstName,
+          lastName: a.instructor.lastName,
+          role: a.role,
+        })),
+      modules: modules.map((m: any) => ({
+        _id: m._id,
+        title: m.title,
+        description: m.description,
+        order: m.order,
+        duration: m.duration,
+        lessons: (m.lessons ?? []).map((l: any) => ({
+          _id: l._id,
+          title: l.title,
+          description: l.description,
+          order: l.order,
+          duration: l.duration,
+          contentType: l.contentType,
+          isPreview: l.isPreview,
+          // Only preview lessons expose their content publicly
+          ...(l.isPreview ? { contentLink: l.contentLink, contentFile: l.contentFile } : {}),
+        })),
+      })),
+    };
   }
 
   // Update a course
@@ -429,11 +563,44 @@ export class CourseService implements ICourseService {
       throw new CourseNotFoundError(`Course ${courseId} not found`);
     }
 
+    const student = await this.userRepo.findById(studentId);
+    if (!student || student.role !== UserRole.STUDENT) {
+      throw new BadRequestError("studentId must belong to an existing student");
+    }
+
+    if (await this.courseRepo.findEnrollment(studentId, courseId)) {
+      throw new AlreadyEnrolledError();
+    }
+
     return await this.courseRepo.enrollStudent({
       student: new Types.ObjectId(studentId),
       course: new Types.ObjectId(courseId),
       enrolledBy : new Types.ObjectId(enrolledBy),
+      ...computeAccessWindow(course.duration ?? 0),
     });
+  }
+
+  // Extend or renew a student's access. Active access grows from its current expiry; expired,
+  // unlimited or legacy access gets a fresh window from the next day. days = 0 removes the expiry.
+  public async extendStudentAccess(courseId: string, studentId: string, days: number): Promise<AccessSummary> {
+    const enrollment = await this.courseRepo.findEnrollment(studentId, courseId);
+    if (!enrollment) {
+      throw new EnrollmentNotFoundError(`Student ${studentId} is not enrolled in course ${courseId}`);
+    }
+
+    const now = new Date();
+    let access: { accessStartsAt?: Date; accessExpiresAt: Date | null };
+
+    if (days === 0) {
+      access = { accessExpiresAt: null };
+    } else if (enrollment.accessExpiresAt && !isAccessExpired(enrollment, now)) {
+      access = { accessExpiresAt: addDays(new Date(enrollment.accessExpiresAt), days) };
+    } else {
+      access = computeAccessWindow(days, now);
+    }
+
+    const updated = await this.courseRepo.updateEnrollmentAccess(enrollment._id.toString(), access);
+    return summarizeAccess(updated!, now);
   }
 
 

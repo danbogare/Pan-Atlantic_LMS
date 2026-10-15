@@ -11,8 +11,11 @@ import {
   createLessonSchema,
   updateLessonSchema,
   reorderModulesSchema,
-  reorderLessonsSchema
+  reorderLessonsSchema,
+  enrollInCourseSchema,
+  extendAccessSchema,
 } from "../validators/course.validator";
+import { ICourseAccessMiddleware, CourseResolver } from "../middlewares/course-access.middleware";
 import { uploadThumbnail, uploadLessonFile } from "../middlewares/upload.middleware";
 import { IDiscussionController } from "../controllers/discussion.controller";
 import { createDiscussionSchema, createReplySchema } from "../validators/discussion.validator";
@@ -24,6 +27,7 @@ export class CourseRouter {
     private readonly courseController: ICourseController,
     private readonly authMiddleware: IAuthMiddleware,
     private readonly discussionController: IDiscussionController,
+    private readonly courseAccess: ICourseAccessMiddleware,
   ) {
     this.initializeRoutes();
   }
@@ -36,46 +40,59 @@ export class CourseRouter {
     // Apply auth to all routes
     this.router.use(asyncHandler(this.authMiddleware.requireAuth));
 
-    // PUBLIC ROUTES (Any authenticated user)
-    
-    // Get all courses
+    // AUTHENTICATED ROUTES
+    // Content routes need course access: admin, an assigned instructor, or a student whose
+    // enrollment is active and not expired. Student/stats views need admin or an assigned instructor.
+    const learn = (resolve: CourseResolver) => asyncHandler(this.courseAccess.requireLearnAccess(resolve));
+    const manage = (resolve: CourseResolver) => asyncHandler(this.courseAccess.requireManageAccess(resolve));
+    const course = this.courseAccess.fromParam("courseId");
+    const discussion = this.courseAccess.fromDiscussionParam("discussionId", "courseId");
+
+    // List courses visible to the caller (admin: all, instructor: assigned, student: enrolled)
     this.router.get("/", asyncHandler(this.courseController.getAllCourses));
 
     // Get course full details (modules, lessons, instructors, stats)
-    this.router.get("/:courseId", asyncHandler(this.courseController.getFullCourseDetails));
+    this.router.get("/:courseId", learn(course), asyncHandler(this.courseController.getFullCourseDetails));
 
     // Get course with instructors
-    this.router.get("/:courseId/instructors", asyncHandler(this.courseController.getCourseWithInstructors));
+    this.router.get("/:courseId/instructors", learn(course), asyncHandler(this.courseController.getCourseWithInstructors));
 
     // Get course with students
-    this.router.get("/:courseId/students", asyncHandler(this.courseController.getCourseWithStudents));
+    this.router.get("/:courseId/students", manage(course), asyncHandler(this.courseController.getCourseWithStudents));
 
     // Get course stats
-    this.router.get("/:courseId/stats", asyncHandler(this.courseController.getCourseStats));
+    this.router.get("/:courseId/stats", manage(course), asyncHandler(this.courseController.getCourseStats));
 
     // Get course modules with lessons
-    this.router.get("/:courseId/modules", asyncHandler(this.courseController.getCourseModules));
+    this.router.get("/:courseId/modules", learn(course), asyncHandler(this.courseController.getCourseModules));
 
     // Get module lessons
-    this.router.get("/modules/:moduleId/lessons", asyncHandler(this.courseController.getModuleLessons));
+    this.router.get(
+      "/modules/:moduleId/lessons",
+      learn(this.courseAccess.fromModuleParam("moduleId")),
+      asyncHandler(this.courseController.getModuleLessons)
+    );
 
     // Discussions
-    this.router.get("/:courseId/discussions", asyncHandler(this.discussionController.getCourseDiscussions));
+    this.router.get("/:courseId/discussions", learn(course), asyncHandler(this.discussionController.getCourseDiscussions));
 
     this.router.get(
       "/:courseId/discussions/:discussionId",
+      learn(discussion),
       asyncHandler(this.discussionController.getDiscussionById)
     );
 
     this.router.post(
       "/:courseId/discussions",
       validate(createDiscussionSchema),
+      learn(course),
       asyncHandler(this.discussionController.createDiscussion)
     );
 
     this.router.post(
       "/:courseId/discussions/:discussionId/replies",
       validate(createReplySchema),
+      learn(discussion),
       asyncHandler(this.discussionController.addReply)
     );
 
@@ -141,7 +158,15 @@ export class CourseRouter {
     // Enroll student in course
     this.router.post(
       "/:courseId/enroll",
+      validate(enrollInCourseSchema),
       asyncHandler(this.courseController.enrollStudent)
+    );
+
+    // Extend/renew a student's access to a course
+    this.router.put(
+      "/:courseId/students/:studentId/access",
+      validate(extendAccessSchema),
+      asyncHandler(this.courseController.extendStudentAccess)
     );
 
     // ADMIN ONLY ROUTES

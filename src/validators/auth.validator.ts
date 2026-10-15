@@ -19,6 +19,16 @@ import "../openapi/registry";
 //     .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character"),
 // });
 
+// Strength rules for any password a user chooses (login stays lenient so existing passwords keep working)
+export const passwordSchema = z
+  .string({ error: "Password is required" })
+  .min(8, { error: "Password must be at least 8 characters long" })
+  .max(128, { error: "Password must be at most 128 characters long" })
+  .regex(/[A-Z]/, { error: "Password must contain at least one uppercase letter" })
+  .regex(/[a-z]/, { error: "Password must contain at least one lowercase letter" })
+  .regex(/[0-9]/, { error: "Password must contain at least one number" })
+  .regex(/[^A-Za-z0-9]/, { error: "Password must contain at least one special character" });
+
 export const loginSchema = z.object({
   email: z
     .string({ error: "Email is required" })
@@ -51,10 +61,7 @@ export const resetPasswordSchema = z.object({
     .regex(/^\d+$/, { message: "OTP must contain numbers only" })
     .length(6, { message: "OTP must be exactly 6 digits" })
     .openapi({ example: "482913", description: "6-digit one-time password sent to the user's email" }),
-  newPassword: z
-    .string({ error: "Password is required" })
-    .min(1, { error: "Password cannot be empty" })
-    .openapi({ example: "newHunter3" }),
+  newPassword: passwordSchema.openapi({ example: "NewHunter3!" }),
 });
 
 export const changePasswordSchema = z.object({
@@ -62,10 +69,10 @@ export const changePasswordSchema = z.object({
     .string({ error: "Password is required" })
     .min(1, { error: "Password cannot be empty" })
     .openapi({ example: "hunter2" }),
-  newPassword: z
-    .string({ error: "Password is required" })
-    .min(1, { error: "Password cannot be empty" })
-    .openapi({ example: "newHunter3" }),
+  newPassword: passwordSchema.openapi({ example: "NewHunter3!" }),
+}).refine((data) => data.newPassword !== data.oldPassword, {
+  error: "New password must be different from the old password",
+  path: ["newPassword"],
 });
 
 // export type RegisterInput = z.infer<typeof registerSchema>;

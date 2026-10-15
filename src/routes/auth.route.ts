@@ -4,6 +4,11 @@ import { IAuthMiddleware } from "../middlewares/auth.middleware";
 import { changePasswordSchema, forgotPasswordSchema, loginSchema, resetPasswordSchema } from "../validators/auth.validator";
 import { validate } from "../middlewares/validation.middleware";
 import { asyncHandler } from "../middlewares/async-handler.middleware";
+import {
+    loginRateLimiters,
+    passwordResetConfirmRateLimiters,
+    passwordResetRequestRateLimiters,
+} from "../middlewares/rate-limit.middleware";
 
 export class AuthRouter {
     private readonly router = Router();
@@ -19,11 +24,16 @@ export class AuthRouter {
     }
 
     private initializeAuthRoutes(): void {
-        this.router.post("/login", validate(loginSchema), asyncHandler(this.authController.login));
-        this.router.post("/password/reset", validate(forgotPasswordSchema), asyncHandler(this.authController.forgotPassword));
-        this.router.put("/password/reset", validate(resetPasswordSchema), asyncHandler(this.authController.resetPassword));
+        this.router.post("/login", loginRateLimiters, validate(loginSchema), asyncHandler(this.authController.login));
+        this.router.post("/password/reset", passwordResetRequestRateLimiters, validate(forgotPasswordSchema), asyncHandler(this.authController.forgotPassword));
+        this.router.put("/password/reset", passwordResetConfirmRateLimiters, validate(resetPasswordSchema), asyncHandler(this.authController.resetPassword));
 
-        this.router.use(asyncHandler(this.authMiddleware.requireAuth));
-        this.router.post("/password/change", validate(changePasswordSchema), asyncHandler( this.authController.changePassword));
+        // Users still on a temporary password must be able to reach this route to replace it
+        this.router.post(
+            "/password/change",
+            asyncHandler(this.authMiddleware.requireAuthAllowPasswordChange),
+            validate(changePasswordSchema),
+            asyncHandler(this.authController.changePassword)
+        );
     }
 }

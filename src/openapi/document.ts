@@ -38,7 +38,27 @@ export function getOpenApiDocument(): OpenAPIObject {
     info: {
       title: "LMS API",
       version: "1.0.0",
-      description: "Auto-generated from Zod validators.",
+      description: [
+        "Auto-generated from Zod validators.",
+        "",
+        "**Authentication:** send `Authorization: Bearer <accessToken>` from `/auth/login`. Invalid or expired tokens return 401.",
+        "",
+        "**Temporary passwords:** users onboarded by an admin log in with a temporary password and have `mustChangePassword: true`. " +
+          "Until they call `POST /auth/password/change`, every other authenticated endpoint returns 403 with `code: \"PASSWORD_CHANGE_REQUIRED\"`. " +
+          "The same access token keeps working after the change.",
+        "",
+        "**Deactivated accounts** receive 403 on login and on every authenticated request.",
+        "",
+        "**Rate limits:** login and password-reset endpoints return 429 when limits are exceeded.",
+        "",
+        "**Course access:** admins can access every course; instructors only courses they are assigned to; students only courses " +
+          "they are enrolled in and whose access has not expired. A course's `duration` is an access period in days that starts " +
+          "at midnight (Africa/Lagos) the day after enrollment; `0` means it never expires. Otherwise course endpoints return 403 " +
+          "with `code` `COURSE_ACCESS_DENIED` or `COURSE_ACCESS_EXPIRED`. After expiry students keep their certificates, progress " +
+          "history and their own notes.",
+        "",
+        "**Public catalog:** `/public/courses` needs no authentication and lists published courses only.",
+      ].join("\n"),
     },
     // TODO: confirm this matches your actual app.use(...) prefixes once
     // you tell me them — right now course/auth/admin paths in the *.docs.ts

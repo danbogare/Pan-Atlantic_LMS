@@ -1,5 +1,7 @@
 // validators/common.validator.ts
 import { z } from "zod";
+import "../openapi/registry";
+import { hasAtMostTwoDecimals } from "../utils/money";
 
 /**
  * Reusable schema fragments shared across course/module/lesson validators.
@@ -93,6 +95,56 @@ export const nonNegativeNumberWithDefault = (fieldLabel: string, defaultValue: n
     )
     .default(defaultValue)
     .openapi({ type: "number", description: fieldLabel, example: defaultValue });;
+
+/** Optional whole number >= 0 (e.g. days). */
+export const optionalNonNegativeInteger = (fieldLabel: string) =>
+  z.preprocess(
+    toNumberOrPassthrough,
+    z
+      .number({ error: `${fieldLabel} must be a valid number` })
+      .int({ error: `${fieldLabel} must be a whole number` })
+      .min(0, { error: `${fieldLabel} cannot be negative` })
+      .optional()
+      .openapi({ type: "integer", description: fieldLabel, example: 0 })
+  );
+
+/** Whole number >= 0 with a fallback when the field is omitted entirely. */
+export const nonNegativeIntegerWithDefault = (fieldLabel: string, defaultValue: number) =>
+  z
+    .preprocess(
+      toNumberOrPassthrough,
+      z
+        .number({ error: `${fieldLabel} must be a valid number` })
+        .int({ error: `${fieldLabel} must be a whole number` })
+        .min(0, { error: `${fieldLabel} cannot be negative` })
+    )
+    .default(defaultValue)
+    .openapi({ type: "integer", description: fieldLabel, example: defaultValue });
+
+/** Money amount >= 0 with at most 2 decimal places, with a fallback when omitted. */
+export const nonNegativeMoneyWithDefault = (fieldLabel: string, defaultValue: number) =>
+  z
+    .preprocess(
+      toNumberOrPassthrough,
+      z
+        .number({ error: `${fieldLabel} must be a valid number` })
+        .min(0, { error: `${fieldLabel} cannot be negative` })
+        .refine(hasAtMostTwoDecimals, { error: `${fieldLabel} can have at most 2 decimal places` })
+    )
+    .default(defaultValue)
+    .openapi({ type: "number", description: fieldLabel, example: defaultValue });
+
+/** Optional money amount >= 0 with at most 2 decimal places. */
+export const optionalNonNegativeMoney = (fieldLabel: string) =>
+  z.preprocess(
+    toNumberOrPassthrough,
+    z
+      .number({ error: `${fieldLabel} must be a valid number` })
+      .min(0, { error: `${fieldLabel} cannot be negative` })
+      .refine(hasAtMostTwoDecimals, { error: `${fieldLabel} can have at most 2 decimal places` })
+      .optional()
+      .openapi({ type: "number", description: fieldLabel, example: 25000 })
+  );
 
 // BOOLEANS
 

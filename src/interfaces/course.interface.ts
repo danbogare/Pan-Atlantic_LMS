@@ -1,11 +1,13 @@
-import { CourseLevel, CourseStatus } from "../models/course.model";
+import { CourseLevel, CourseStatus, CourseType } from "../models/course.model";
 import { ContentType } from "../models/courseModule.model";
 
 export interface CreateCoursePayload {
     title: string;
     description: string;
     level: CourseLevel;
+    courseType: CourseType;
     duration: number;
+    price: number;
     prerequisites?: string[];
     learningObjectives?: string[];
     instructorIds?: string[];
@@ -16,7 +18,9 @@ export interface UpdateCoursePayload {
     title?: string;
     description?: string;
     level?: CourseLevel;
+    courseType?: CourseType;
     duration?: number;
+    price?: number;
     prerequisites?: string[];
     learningObjectives?: string[];
     instructorIds?: string[];
@@ -25,10 +29,23 @@ export interface UpdateCoursePayload {
 export interface CourseFilter {
   status?: CourseStatus;
   level?: string;
+  courseType?: CourseType;
+  // Excludes a status (ignored when `status` is set)
+  statusNot?: CourseStatus;
   createdBy?: string;
   search?: string;
+  // Restricts results to these course ids (used for role-scoped listings)
+  courseIds?: string[];
   page?: number;
   limit?: number;
+}
+
+export interface PaginatedResult<T> {
+  items: T[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
 }
 
 export interface CourseStats {
