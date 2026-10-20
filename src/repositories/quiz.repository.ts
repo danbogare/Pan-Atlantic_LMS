@@ -17,6 +17,7 @@ export interface IQuizAttemptRepository {
   findInProgress(studentId: string, quizId: string): Promise<IQuizAttempt | null>;
   getAttemptHistory(studentId: string, quizId: string): Promise<IQuizAttempt[]>;
   update(id: string, data: Partial<IQuizAttempt>): Promise<IQuizAttempt | null>;
+  hasPassedAttempt(studentId: string, quizId: string): Promise<boolean>;
 }
 
 export class QuizRepository implements IQuizRepository {
@@ -69,5 +70,10 @@ export class QuizAttemptRepository implements IQuizAttemptRepository {
 
   public async update(id: string, data: Partial<IQuizAttempt>): Promise<IQuizAttempt | null> {
     return await this.attemptModel.findByIdAndUpdate(id, data, { new: true }).exec();
+  }
+
+  public async hasPassedAttempt(studentId: string, quizId: string): Promise<boolean> {
+    const attempt = await this.attemptModel.exists({ student: studentId, quiz: quizId, passed: true });
+    return !!attempt;
   }
 }

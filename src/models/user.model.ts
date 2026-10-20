@@ -20,6 +20,8 @@ export interface IUser extends Document {
   // admin-created and pre-existing accounts count as verified
   emailVerified: boolean;
   learningStreak?: number;
+  // Last learning activity (lesson completed); drives learningStreak
+  lastActivityAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -44,7 +46,8 @@ const UserSchema = new Schema<IUser>({
   isActive: { type: Boolean, default: true },
   mustChangePassword: { type: Boolean, default: false },
   emailVerified: { type: Boolean, default: true },
-  learningStreak: { type: Number, default: 0 }
+  learningStreak: { type: Number, default: 0 },
+  lastActivityAt: { type: Date }
 }, {
   timestamps: true 
 });

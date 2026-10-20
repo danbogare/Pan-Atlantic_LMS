@@ -235,3 +235,17 @@ export class CourseHasStudentsError extends AppError {
     );
   }
 }
+
+// Professional courses are applied for (and paid) by students; academic courses are enrolled by an admin
+export class CourseTypeNotAllowedError extends AppError {
+  constructor(message: string) {
+    super(400, message, "COURSE_TYPE_NOT_ALLOWED");
+  }
+}
+
+// A quiz/assignment lesson can't be completed until it is passed/submitted
+export class LessonRequirementNotMetError extends AppError {
+  constructor(message: string) {
+    super(400, message, "LESSON_REQUIREMENT_NOT_MET");
+  }
+}

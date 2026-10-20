@@ -172,13 +172,27 @@ class App {
     const authService = new AuthService(userRepository, otpRepository, mailService, cryptoService);
     const userService = new UserService(userRepository, courseRepository, mailService, cryptoService);
     const storageService = new CloudinaryService(env.cloudinary);
+    const certificateService = new CertificateService(certificateRepository);
+    const badgeService = new BadgeService(badgeRepository, userRepository, courseRepository);
+    const progressService = new ProgressService(
+      lessonProgressRepository,
+      courseRepository,
+      certificateService,
+      badgeService,
+      courseContentRepository,
+      userRepository,
+      quizRepository,
+      quizAttemptRepository,
+      submissionRepository
+    );
     const courseService = new CourseService(
       courseRepository,
       courseContentRepository,
       storageService,
       userRepository,
       quizRepository,
-      discussionRepository
+      discussionRepository,
+      progressService
     );
     const courseAccessService = new CourseAccessService(
       courseRepository,
@@ -191,9 +205,6 @@ class App {
     const noteService = new NoteService(noteRepository, courseRepository);
     const discussionService = new DiscussionService(discussionRepository, courseRepository);
     const submissionService = new AssignmentSubmissionService(submissionRepository, courseContentRepository);
-    const certificateService = new CertificateService(certificateRepository);
-    const badgeService = new BadgeService(badgeRepository, userRepository, courseRepository);
-    const progressService = new ProgressService(lessonProgressRepository, courseRepository, certificateService, badgeService);
     const statsService = new StatsService(statsRepository);
     const notificationService = new NotificationService(notificationRepository, userRepository);
     const quizService = new QuizService(quizRepository, quizAttemptRepository, courseContentRepository);
@@ -223,7 +234,10 @@ class App {
     const statsController = new StatsController(statsService);
     const notificationController = new NotificationController(notificationService);
     const quizController = new QuizController(quizService);
-    const paymentController = new PaymentController(paymentService);
+    const paymentController = new PaymentController(
+      paymentService,
+      `${env.frontendUrl.replace(/\/+$/, "")}/enroll/complete`
+    );
 
     // routes
     const authRouter = new AuthRouter(authController, authMiddleware);
@@ -257,7 +271,7 @@ class App {
     const quizRouter = new QuizRouter(quizController, authMiddleware, courseAccessMiddleware);
     const publicRouter = new PublicRouter(courseController);
     const userRouter = new UserRouter(userController, authMiddleware);
-    const paymentRouter = new PaymentRouter(paymentController);
+    const paymentRouter = new PaymentRouter(paymentController, authMiddleware);
 
     this.instance.use("/public", publicRouter.getRouter());
     this.instance.use("/auth", authRouter.getRouter());

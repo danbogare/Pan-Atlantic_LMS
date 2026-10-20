@@ -7,6 +7,15 @@ export interface EnrollStudentPayload {
   courseIds: string[];
 }
 
+export interface StudentEnrollmentResult {
+  studentId: string;
+  // false when the email already belonged to a student (e.g. self-registered); no invite email is sent then
+  isNewAccount: boolean;
+  enrolledCourseIds: string[];
+  // Courses the student was already enrolled in, skipped
+  alreadyEnrolledCourseIds: string[];
+}
+
 export interface InviteInstructorPayload {
   firstName: string;
   lastName: string;

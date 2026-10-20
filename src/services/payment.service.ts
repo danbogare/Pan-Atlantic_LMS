@@ -10,11 +10,13 @@ import {
   BadRequestError,
   CourseNotAvailableError,
   CourseNotFoundError,
+  CourseTypeNotAllowedError,
   PaymentNotFoundError,
 } from "../errors/error";
-import { CourseStatus, ICourse, IEnrollment } from "../models/course.model";
+import { CourseStatus, CourseType, ICourse, IEnrollment } from "../models/course.model";
 import { IPayment, PaymentStatus } from "../models/payment.model";
 import { UserRole } from "../models/user.model";
+import { IAuthUserPayload } from "../interfaces/auth.interface";
 import {
   CourseApplicationResult,
   FlutterwaveTransaction,
@@ -33,6 +35,9 @@ export interface IPaymentService {
   applyForCourse(studentId: string, courseId: string): Promise<CourseApplicationResult>;
   // Flutterwave redirect (callback) target: confirms the transaction with Flutterwave and enrolls the student
   verifyPayment(query: VerifyPaymentQuery): Promise<PaymentVerificationResult>;
+  // Payment status for the frontend after the redirect. Students only see their own payments;
+  // a payment still pending is re-checked with Flutterwave first.
+  getPaymentByTxRef(txRef: string, user: IAuthUserPayload): Promise<PaymentVerificationResult>;
 }
 
 export class PaymentService implements IPaymentService {
@@ -52,6 +57,9 @@ export class PaymentService implements IPaymentService {
     }
     if (course.status !== CourseStatus.PUBLISHED) {
       throw new CourseNotAvailableError();
+    }
+    if (course.courseType !== CourseType.PROFESSIONAL) {
+      throw new CourseTypeNotAllowedError("Only professional courses can be applied for; academic enrollment is done by an admin");
     }
 
     const student = await this.userRepo.findById(studentId);
@@ -185,6 +193,26 @@ export class PaymentService implements IPaymentService {
 
     const enrollment = await this.enroll(course, successful.student.toString());
     return { payment: successful, enrollment };
+  }
+
+  public async getPaymentByTxRef(txRef: string, user: IAuthUserPayload): Promise<PaymentVerificationResult> {
+    const payment = await this.paymentRepo.findByTxRef(txRef);
+    // Same 404 for someone else's payment, so references can't be probed
+    if (!payment || (user.role !== UserRole.ADMIN && payment.student.toString() !== user.id)) {
+      throw new PaymentNotFoundError();
+    }
+
+    if (payment.status === PaymentStatus.PENDING) {
+      // Best effort: if Flutterwave is unreachable, still report the stored (pending) state
+      await this.verifyPayment({ tx_ref: txRef }).catch((error) => console.error(error));
+    }
+
+    const latest = (await this.paymentRepo.findByTxRefWithCourse(txRef)) ?? payment;
+    // Look up the enrollment with the unpopulated ids; `latest.course` is a populated document
+    const enrollment = latest.status === PaymentStatus.SUCCESSFUL
+      ? await this.courseRepo.findEnrollment(payment.student.toString(), payment.course.toString())
+      : null;
+    return { payment: latest, enrollment };
   }
 
   // Returns a reason when the transaction doesn't belong to this payment or wasn't paid in full

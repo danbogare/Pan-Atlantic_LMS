@@ -52,6 +52,13 @@ export function registerProgressDocs() {
     path: "/student/progress/{courseId}/lessons/complete",
     tags: ["Progress"],
     summary: "Mark a lesson complete",
+    description:
+      "The lesson must belong to the course (404 otherwise) and to `moduleId` (400 otherwise). " +
+      "Quiz lessons need a passing quiz attempt first, and assignment lessons a submission that wasn't sent back for " +
+      "resubmission; otherwise 400 with `code: LESSON_REQUIREMENT_NOT_MET`. Re-marking a completed lesson is a no-op.\n\n" +
+      "Progress is the share of the course's current lessons completed, rounded down, so `completed` is only true once every " +
+      "lesson is done; the enrollment is then completed and the certificate issued once. A newly completed lesson also updates " +
+      "the student's `learningStreak` (consecutive Africa/Lagos calendar days with a completed lesson).",
     security: [{ [bearerAuth.name]: [] }],
     request: {
       params: CourseIdParam,

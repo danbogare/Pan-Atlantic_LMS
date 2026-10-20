@@ -5,17 +5,19 @@ import { ICloudinaryService } from "./storage.service";
 import { IUserRepository } from "../repositories/user.repository";
 import { IQuizRepository } from "../repositories/quiz.repository";
 import { IDiscussionRepository } from "../repositories/discussion.repository";
+import { IProgressService } from "./lessonProgress.service";
 import {
   AlreadyEnrolledError,
   BadRequestError,
   CourseAccessDeniedError,
   CourseHasStudentsError,
+  CourseTypeNotAllowedError,
   CourseNotFoundError,
   EnrollmentNotFoundError,
   LessonNotFoundError,
   ModuleNotFoundError,
 } from "../errors/error";
-import { CourseStatus, EnrollmentStatus, ICourse } from "../models/course.model";
+import { CourseStatus, CourseType, EnrollmentStatus, ICourse } from "../models/course.model";
 import { ContentType, ICourseLesson, ICourseModule } from "../models/courseModule.model";
 import { UserRole } from "../models/user.model";
 import { Types } from "mongoose";
@@ -99,6 +101,7 @@ export class CourseService implements ICourseService {
     private readonly userRepo: IUserRepository,
     private readonly quizRepo: IQuizRepository,
     private readonly discussionRepo: IDiscussionRepository,
+    private readonly progressService: IProgressService,
   ) {}
 
   // Create a new course with optional thumbnail
@@ -460,7 +463,14 @@ export class CourseService implements ICourseService {
 
   // Delete a module
   public async deleteModule(moduleId: string): Promise<void> {
+    const module = await this.contentRepo.findModuleById(moduleId);
+    const lessonIds = module ? (await this.contentRepo.getModuleLessons(moduleId)).map((lesson) => lesson._id.toString()) : [];
+
     await this.contentRepo.deleteModule(moduleId);
+
+    if (module) {
+      await this.syncProgress(() => this.progressService.handleLessonsRemoved(module.course.toString(), lessonIds));
+    }
   }
 
   // Reorder modules in a course
@@ -498,7 +508,7 @@ export class CourseService implements ICourseService {
     }
 
     // Create the lesson
-    return await this.contentRepo.createLesson({
+    const lesson = await this.contentRepo.createLesson({
       title: data.title,
       description: data.description || '',
       module: new Types.ObjectId(moduleId),
@@ -510,6 +520,10 @@ export class CourseService implements ICourseService {
       duration: data.duration,
       isPreview: data.isPreview,
     });
+
+    // A new lesson lowers everyone's percentage
+    await this.syncProgress(() => this.progressService.recalculateCourseProgress(courseId));
+    return lesson;
   }
 
   // Get all lessons for a module
@@ -533,7 +547,23 @@ export class CourseService implements ICourseService {
 
   // Delete a lesson
   public async deleteLesson(lessonId: string): Promise<void> {
+    const lesson = await this.contentRepo.findLessonById(lessonId);
+
     await this.contentRepo.deleteLesson(lessonId);
+
+    if (lesson) {
+      await this.syncProgress(() => this.progressService.handleLessonsRemoved(lesson.course.toString(), [lessonId]));
+    }
+  }
+
+  // Keeps enrolled students' stored progress in step with content changes. The content change itself
+  // has already succeeded, so a failure here is logged rather than failing the request.
+  private async syncProgress(sync: () => Promise<void>): Promise<void> {
+    try {
+      await sync();
+    } catch (error) {
+      console.error("Failed to recalculate course progress:", error);
+    }
   }
 
   
@@ -584,6 +614,10 @@ export class CourseService implements ICourseService {
     const course = await this.courseRepo.findById(courseId);
     if (!course) {
       throw new CourseNotFoundError(`Course ${courseId} not found`);
+    }
+    // Professional courses are paid for through the student's own application
+    if (course.courseType !== CourseType.ACADEMIC) {
+      throw new CourseTypeNotAllowedError("Admins can only enroll students in academic courses; professional courses are applied for by the student");
     }
 
     const student = await this.userRepo.findById(studentId);

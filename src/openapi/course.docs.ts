@@ -336,7 +336,10 @@ export function registerCourseDocs() {
     path: "/courses/{courseId}/enroll",
     tags: ["Courses"],
     summary: "Enroll a student in a course (admin)",
-    description: "The student's access starts at midnight (Africa/Lagos) the day after enrollment and lasts the course's `duration` in days.",
+    description:
+      "Academic courses only; professional courses return 400 with `code: COURSE_TYPE_NOT_ALLOWED` (students apply for those " +
+      "through `POST /courses/{courseId}/apply`). " +
+      "The student's access starts at midnight (Africa/Lagos) the day after enrollment and lasts the course's `duration` in days.",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: CourseIdParam, body: { content: { "application/json": { schema: enrollInCourseSchema } } } },
     responses: {

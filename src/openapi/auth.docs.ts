@@ -27,7 +27,11 @@ export const UserSchema = z.object({
     example: true,
     description: "false only for self-registered accounts that haven't verified their email",
   }),
-  learningStreak: z.number().optional().openapi({ example: 0 }),
+  learningStreak: z
+    .number()
+    .optional()
+    .openapi({ example: 3, description: "Consecutive days (Africa/Lagos) with a completed lesson; 0 once a day is missed" }),
+  lastActivityAt: z.string().datetime().optional().openapi({ description: "When the student last completed a lesson" }),
   createdAt: z.string().openapi({ example: "2026-10-15T09:00:00.000Z" }),
   updatedAt: z.string().openapi({ example: "2026-10-15T09:00:00.000Z" }),
 });

@@ -1,4 +1,5 @@
 import { IUserRepository } from "../repositories/user.repository";
+import { withCurrentStreak } from "../utils/streak";
 import { IOtpRepository } from "../repositories/otp.repository";
 import { IMailService } from "./mail.service";
 import { IUser, UserRole } from "../models/user.model";
@@ -181,7 +182,7 @@ export class AuthService implements IAuthService {
 
   // Strips passwordHash and issues an access token
   private buildAuthData(user: IUser): IAuthUser {
-    const userObj = user.toObject();
+    const userObj = withCurrentStreak(user.toObject());
     delete (userObj as any).passwordHash;
 
     const tokenData: IAuthUserPayload = {

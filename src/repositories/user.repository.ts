@@ -12,7 +12,7 @@ export interface IUserRepository {
   getAllStudents(): Promise<IUser[]>;
   getUsersByRole(role: UserRole): Promise<IUser[]>;
   create(userData: Partial<IUser>): Promise<IUser>;
-  updateStreak(id: string, newStreak: number): Promise<IUser | null>;
+  updateStreak(id: string, newStreak: number, lastActivityAt: Date): Promise<IUser | null>;
   updatePassword(id: string, newPasswordHash: string): Promise<void>;
   updateUserInfo(id: string, firstname: string, lastname: string): Promise<IUser | null>
   findProfileById(id: string): Promise<IUser | null>;
@@ -58,7 +58,7 @@ export class UserRepository implements IUserRepository {
   public async getAllInstructors(): Promise<IUser[]> {
     return await this.UserModel
       .find({ role: UserRole.INSTRUCTOR, isActive: true })
-      .select('_id firstName lastName email isActive role mustChangePassword learningStreak')
+      .select('_id firstName lastName email isActive role mustChangePassword learningStreak lastActivityAt')
       .sort({ firstName: 1 })
       .exec();
   }
@@ -66,7 +66,7 @@ export class UserRepository implements IUserRepository {
   public async getAllStudents(): Promise<IUser[]> {
     return await this.UserModel
       .find({ role: UserRole.STUDENT, isActive: true })
-      .select('_id firstName lastName email isActive role mustChangePassword learningStreak')
+      .select('_id firstName lastName email isActive role mustChangePassword learningStreak lastActivityAt')
       .sort({ firstName: 1 })
       .exec();
   }
@@ -74,7 +74,7 @@ export class UserRepository implements IUserRepository {
   public async getUsersByRole(role: UserRole): Promise<IUser[]> {
     return await this.UserModel
       .find({ role, isActive: true })
-      .select('_id firstName lastName email isActive role mustChangePassword learningStreak')
+      .select('_id firstName lastName email isActive role mustChangePassword learningStreak lastActivityAt')
       .sort({ firstName: 1 })
       .exec();
   }
@@ -83,10 +83,10 @@ export class UserRepository implements IUserRepository {
     return await this.UserModel.create(userData);
   }
 
-  public async updateStreak(id: string, newStreak: number): Promise<IUser | null> {
+  public async updateStreak(id: string, newStreak: number, lastActivityAt: Date): Promise<IUser | null> {
     return await this.UserModel.findByIdAndUpdate(
       id,
-      { $set: { learningStreak: newStreak } },
+      { $set: { learningStreak: newStreak, lastActivityAt } },
       { new: true }
     ).exec();
   }

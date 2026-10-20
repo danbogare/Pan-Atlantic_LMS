@@ -30,9 +30,12 @@ export class UserController implements IUserController {
       email,
       courseIds: assignedCourseIds
     }
-    await this.userService.inviteStudent(enrollmentdata, assignedById);
+    const result = await this.userService.inviteStudent(enrollmentdata, assignedById);
 
-    createdSuccessResponse(res, "invite email sent successfully.", {});
+    const message = result.isNewAccount
+      ? "Student account created, invite email sent and enrolled successfully."
+      : "Existing student enrolled successfully, no invite email sent.";
+    createdSuccessResponse(res, message, result);
   };
   
   public inviteInstructor = async (req: Request<{}, {}, InviteInstructorInput>, res: Response): Promise<void> => {

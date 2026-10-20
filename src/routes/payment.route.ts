@@ -1,13 +1,15 @@
 import { Router } from "express";
 import { IPaymentController } from "../controllers/payment.controller";
+import { IAuthMiddleware } from "../middlewares/auth.middleware";
 import { asyncHandler } from "../middlewares/async-handler.middleware";
 
-// Payment provider callbacks. Unauthenticated: Flutterwave redirects the student's browser here,
-// and every payment is re-verified with Flutterwave before anything is granted.
 export class PaymentRouter {
   private readonly router = Router();
 
-  constructor(private readonly paymentController: IPaymentController) {
+  constructor(
+    private readonly paymentController: IPaymentController,
+    private readonly authMiddleware: IAuthMiddleware
+  ) {
     this.initializeRoutes();
   }
 
@@ -16,7 +18,15 @@ export class PaymentRouter {
   }
 
   private initializeRoutes(): void {
-    // Flutterwave redirect_url: ?status=&tx_ref=&transaction_id=
+    // Public — Flutterwave redirect_url: ?status=&tx_ref=&transaction_id=.
+    // Verifies with Flutterwave, then redirects on to FRONTEND_URL/enroll/complete?txRef=
     this.router.get("/verify", asyncHandler(this.paymentController.verifyPayment));
+
+    // Payment status for the frontend after the redirect (own payments only; admins see all)
+    this.router.get(
+      "/:txRef",
+      asyncHandler(this.authMiddleware.requireAuth),
+      asyncHandler(this.paymentController.getPaymentByTxRef)
+    );
   }
 }

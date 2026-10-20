@@ -2,16 +2,31 @@ import { IUserRepository } from "../repositories/user.repository";
 import { ICourseRepository } from "../repositories/course.repository";
 import { IUser, UserRole } from "../models/user.model";
 import { IMailService } from "./mail.service";
-import { UserExistsError, CourseNotFoundError, UserNotFoundError } from "../errors/error";
+import {
+  UserExistsError,
+  CourseNotFoundError,
+  UserNotFoundError,
+  AlreadyEnrolledError,
+  BadRequestError,
+  CourseTypeNotAllowedError,
+} from "../errors/error";
 import { ICryptoService } from "./crypto.service";
 import { Types } from "mongoose";
-import { ICourse } from "../models/course.model";
+import { CourseType, ICourse } from "../models/course.model";
 import { computeAccessWindow } from "../utils/course-access";
-import { InviteInstructorPayload, EnrollStudentPayload, IStudentWithCourses, IInstructorWithCourses } from "../interfaces/user.interface";
+import { withCurrentStreak } from "../utils/streak";
+import {
+  InviteInstructorPayload,
+  EnrollStudentPayload,
+  IStudentWithCourses,
+  IInstructorWithCourses,
+  StudentEnrollmentResult,
+} from "../interfaces/user.interface";
 
 export interface IUserService {
   // Student methods
-  inviteStudent(data: EnrollStudentPayload, enrolledBy: string): Promise<void>;
+  // Academic courses only. Creates and emails a new student, or just enrolls an existing one (no email).
+  inviteStudent(data: EnrollStudentPayload, enrolledBy: string): Promise<StudentEnrollmentResult>;
   
   // Instructor methods
   inviteInstructor(data: InviteInstructorPayload, assignedBy: string): Promise<void>;
@@ -38,18 +53,22 @@ export class UserService implements IUserService {
     private readonly cryptoService: ICryptoService
   ) {}
 
-  public async inviteStudent(data: EnrollStudentPayload, enrolledBy: string): Promise<void> {
+  public async inviteStudent(data: EnrollStudentPayload, enrolledBy: string): Promise<StudentEnrollmentResult> {
     const { firstName, lastName, email } = data;
     const courseIds = this.uniqueIds(data.courseIds);
 
-    // Check if user exists
+    // If courses specified, validate they exist and are academic
+    const courses = courseIds.length > 0 ? await this.validateCourses(courseIds) : [];
+    this.ensureAcademicCourses(courses);
+
+    // Existing student (e.g. self-registered, paid and verified by an admin): just enroll, no new account or email
     const existingUser = await this.userRepository.findByEmail(email);
     if (existingUser) {
-      throw new UserExistsError();
+      if (existingUser.role !== UserRole.STUDENT) {
+        throw new BadRequestError("This email belongs to an account that is not a student");
+      }
+      return await this.enrollExistingStudent(existingUser.id, courses, enrolledBy);
     }
-
-    // If courses specified, validate they exist
-    const courses = courseIds.length > 0 ? await this.validateCourses(courseIds) : [];
 
     // Create user
     const tempPassword = this.cryptoService.generateTempPass();
@@ -75,6 +94,13 @@ export class UserService implements IUserService {
     // The student can still get in through the forgot-password flow.
     this.mailService.sendStudentInviteEmail(email, firstName, tempPassword).catch(() => undefined);
     console.log(`Student ${email} created${courseIds.length > 0 ? ' and enrolled in courses' : ''}`);
+
+    return {
+      studentId: user.id,
+      isNewAccount: true,
+      enrolledCourseIds: courses.map((course) => course._id.toString()),
+      alreadyEnrolledCourseIds: [],
+    };
   }
 
   public async inviteInstructor(data: InviteInstructorPayload, assignedBy: string): Promise<void> {
@@ -122,15 +148,17 @@ export class UserService implements IUserService {
   }
 
   public async getAllStudents(): Promise<IUser[]> {
-    return await this.userRepository.getAllStudents();
+    return (await this.userRepository.getAllStudents()).map(withCurrentStreak);
   }
   
   public async getUsersByRole(role: UserRole): Promise<IUser[]> {
-    return await this.userRepository.getUsersByRole(role);
+    return (await this.userRepository.getUsersByRole(role)).map(withCurrentStreak);
   }
 
   public async getStudentByIdWithCourses(id: string): Promise<IStudentWithCourses | null> {
-    return await this.userRepository.getStudentByIdWithCourses(id);
+    const result = await this.userRepository.getStudentByIdWithCourses(id);
+    if (result) withCurrentStreak(result.student);
+    return result;
   }
 
   public async getInstructorByIdWithCourses(id: string): Promise<IInstructorWithCourses | null> {
@@ -144,7 +172,8 @@ export class UserService implements IUserService {
   public async getProfile(id: string): Promise<IUser> {
     const user = await this.userRepository.findProfileById(id);
     if (!user) throw new UserNotFoundError();
-    return user;
+    // The stored streak only changes on activity, so a lapsed one would otherwise still show its old value
+    return withCurrentStreak(user);
   }
 
   public async updateProfile(id: string, data: { firstName?: string; lastName?: string }): Promise<IUser> {
@@ -189,6 +218,48 @@ export class UserService implements IUserService {
       courses.push(course);
     }
     return courses;
+  }
+
+  private ensureAcademicCourses(courses: ICourse[]): void {
+    const notAcademic = courses.filter((course) => course.courseType !== CourseType.ACADEMIC);
+    if (notAcademic.length > 0) {
+      const titles = notAcademic.map((course) => course.title).join(", ");
+      throw new CourseTypeNotAllowedError(
+        `Admins can only enroll students in academic courses; professional courses are applied for by the student: ${titles}`
+      );
+    }
+  }
+
+  // Enrolls an existing student in the courses they aren't in yet. Never rolls back: the account predates this request.
+  private async enrollExistingStudent(
+    studentId: string,
+    courses: ICourse[],
+    enrolledBy: string,
+  ): Promise<StudentEnrollmentResult> {
+    const toEnroll: ICourse[] = [];
+    const alreadyEnrolledCourseIds: string[] = [];
+    for (const course of courses) {
+      const courseId = course._id.toString();
+      if (await this.courseRepository.findEnrollment(studentId, courseId)) {
+        alreadyEnrolledCourseIds.push(courseId);
+      } else {
+        toEnroll.push(course);
+      }
+    }
+
+    if (courses.length > 0 && toEnroll.length === 0) {
+      throw new AlreadyEnrolledError();
+    }
+
+    await this.enrollStudentInCourses(studentId, toEnroll, enrolledBy);
+    console.log(`Existing student ${studentId} enrolled in ${toEnroll.length} course(s)`);
+
+    return {
+      studentId,
+      isNewAccount: false,
+      enrolledCourseIds: toEnroll.map((course) => course._id.toString()),
+      alreadyEnrolledCourseIds,
+    };
   }
 
   private async enrollStudentInCourses(

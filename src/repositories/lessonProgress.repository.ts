@@ -7,6 +7,8 @@ export interface ILessonProgressRepository {
   isLessonComplete(studentId: string, lessonId: string): Promise<boolean>;
   getCompletedLessonIds(studentId: string, courseId: string): Promise<string[]>;
   getCourseProgressPercent(studentId: string, courseId: string): Promise<number>;
+  // Removes every student's progress on these lessons (used when lessons are deleted)
+  deleteByLessons(lessonIds: string[]): Promise<void>;
 }
 
 export class LessonProgressRepository implements ILessonProgressRepository {
@@ -36,9 +38,13 @@ export class LessonProgressRepository implements ILessonProgressRepository {
     return !!record;
   }
 
+  // Only lessons that still exist in the course; records for deleted lessons are ignored
   public async getCompletedLessonIds(studentId: string, courseId: string): Promise<string[]> {
+    const lessonIds = await this.getCourseLessonIds(courseId);
+    if (lessonIds.length === 0) return [];
+
     const records = await this.lessonProgressModel
-      .find({ student: studentId, course: courseId })
+      .find({ student: studentId, lesson: { $in: lessonIds } })
       .select('lesson')
       .lean();
 
@@ -46,15 +52,24 @@ export class LessonProgressRepository implements ILessonProgressRepository {
   }
 
   public async getCourseProgressPercent(studentId: string, courseId: string): Promise<number> {
-    const [completedCount, totalCount] = await Promise.all([
-      this.lessonProgressModel.countDocuments({
-        student: studentId,
-        course: new Types.ObjectId(courseId),
-      }),
-      this.lessonModel.countDocuments({ course: new Types.ObjectId(courseId) }),
-    ]);
+    const lessonIds = await this.getCourseLessonIds(courseId);
+    if (lessonIds.length === 0) return 0;
 
-    if (totalCount === 0) return 0;
-    return Math.round((completedCount / totalCount) * 100);
+    const completedCount = await this.lessonProgressModel.countDocuments({
+      student: studentId,
+      lesson: { $in: lessonIds },
+    });
+
+    // Floor so 100 only means every lesson is done (rounding would turn 199/200 into 100)
+    return Math.min(100, Math.floor((completedCount / lessonIds.length) * 100));
+  }
+
+  public async deleteByLessons(lessonIds: string[]): Promise<void> {
+    if (lessonIds.length === 0) return;
+    await this.lessonProgressModel.deleteMany({ lesson: { $in: lessonIds } }).exec();
+  }
+
+  private async getCourseLessonIds(courseId: string): Promise<Types.ObjectId[]> {
+    return await this.lessonModel.find({ course: new Types.ObjectId(courseId) }).distinct('_id');
   }
 }

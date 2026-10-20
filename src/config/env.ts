@@ -33,6 +33,7 @@ interface EnvConfig {
   nodeEnv: string;
   port: number;
   apiUrl: string;
+  frontendUrl: string;
   mongoUri: string;
   jwtSecret: string;
   smtp: ISMTPConfig;
@@ -62,6 +63,7 @@ export const env: EnvConfig = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
   port: Number(process.env.PORT ?? 4000),
   apiUrl: process.env.API_URL ?? `http://localhost:${process.env.PORT ?? 4000}`,
+  frontendUrl: process.env.FRONTEND_URL ?? `http://localhost:3000`,
   mongoUri: requireEnv('MONGO_URI'),
   jwtSecret: requireEnv('JWT_ACCESS_SECRET'),
   resendApiKey: requireEnv('RESEND_API_KEY'),

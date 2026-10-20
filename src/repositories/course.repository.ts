@@ -30,6 +30,7 @@ export interface ICourseRepository {
   getStudentEnrollments(studentId: string): Promise<any[]>;
   updateEnrollmentStatus(enrollmentId: string, status: EnrollmentStatus): Promise<IEnrollment | null>;
   getEnrollmentCount(courseId: string): Promise<number>;
+  findActiveEnrollmentsByCourse(courseId: string): Promise<IEnrollment[]>;
   // Every enrollment regardless of status (active, completed or dropped)
   countAllEnrollments(courseId: string): Promise<number>;
   
@@ -254,6 +255,12 @@ export class CourseRepository implements ICourseRepository {
       course: courseId,
       status: EnrollmentStatus.ACTIVE
     });
+  }
+
+  public async findActiveEnrollmentsByCourse(courseId: string): Promise<IEnrollment[]> {
+    return await this.enrollmentModel
+      .find({ course: courseId, status: EnrollmentStatus.ACTIVE })
+      .exec();
   }
 
   public async countAllEnrollments(courseId: string): Promise<number> {
