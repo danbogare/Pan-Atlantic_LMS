@@ -3,10 +3,13 @@ import { ICourseRepository } from "../repositories/course.repository";
 import { ICourseContentRepository } from "../repositories/courseModule.repository";
 import { ICloudinaryService } from "./storage.service";
 import { IUserRepository } from "../repositories/user.repository";
+import { IQuizRepository } from "../repositories/quiz.repository";
+import { IDiscussionRepository } from "../repositories/discussion.repository";
 import {
   AlreadyEnrolledError,
   BadRequestError,
   CourseAccessDeniedError,
+  CourseHasStudentsError,
   CourseNotFoundError,
   EnrollmentNotFoundError,
   LessonNotFoundError,
@@ -94,6 +97,8 @@ export class CourseService implements ICourseService {
     private readonly contentRepo: ICourseContentRepository,
     private readonly cloudinaryService: ICloudinaryService,
     private readonly userRepo: IUserRepository,
+    private readonly quizRepo: IQuizRepository,
+    private readonly discussionRepo: IDiscussionRepository,
   ) {}
 
   // Create a new course with optional thumbnail
@@ -300,12 +305,24 @@ export class CourseService implements ICourseService {
     return thumbnailUrl;
   }
 
-   // Delete course (soft delete - archive)
+  // Permanently delete a course and its content. Refused while any student (active, completed or
+  // dropped) is enrolled, so student records like progress and certificates are never orphaned.
   public async deleteCourse(courseId: string): Promise<void> {
     const course = await this.courseRepo.findById(courseId);
     if (!course) {
       throw new CourseNotFoundError(`Course ${courseId} not found`);
     }
+
+    const studentCount = await this.courseRepo.countAllEnrollments(courseId);
+    if (studentCount > 0) {
+      throw new CourseHasStudentsError(studentCount);
+    }
+
+    await Promise.all([
+      this.contentRepo.deleteCourseContent(courseId),
+      this.quizRepo.deleteByCourse(courseId),
+      this.discussionRepo.deleteByCourse(courseId),
+    ]);
     await this.courseRepo.delete(courseId);
   }
 

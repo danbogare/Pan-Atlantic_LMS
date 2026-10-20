@@ -410,9 +410,12 @@ export function registerCourseDocs() {
     path: "/courses/{courseId}",
     tags: ["Courses"],
     summary: "Delete a course by Admin",
+    description:
+      "Permanently deletes the course with its modules, lessons, quizzes, discussions and instructor assignments. " +
+      "Refused with 409 (`code: COURSE_HAS_STUDENTS`) while any student is enrolled, whatever the enrollment status.",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: CourseIdParam },
-    responses: { 200: successEnvelope(z.object({}), "Course archived"), ...pick(errorResponses, 401, 403, 404) },
+    responses: { 200: successEnvelope(z.object({}), "Course deleted"), ...pick(errorResponses, 401, 403, 404, 409) },
   });
 
   registry.registerPath({

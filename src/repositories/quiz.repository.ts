@@ -8,6 +8,7 @@ export interface IQuizRepository {
   findById(id: string): Promise<IQuiz | null>;
   findByLesson(lessonId: string): Promise<IQuiz | null>;
   update(id: string, data: Partial<IQuiz>): Promise<IQuiz | null>;
+  deleteByCourse(courseId: string): Promise<void>;
 }
 
 export interface IQuizAttemptRepository {
@@ -35,6 +36,10 @@ export class QuizRepository implements IQuizRepository {
 
   public async update(id: string, data: Partial<IQuiz>): Promise<IQuiz | null> {
     return await this.quizModel.findByIdAndUpdate(id, data, { new: true }).exec();
+  }
+
+  public async deleteByCourse(courseId: string): Promise<void> {
+    await this.quizModel.deleteMany({ course: courseId }).exec();
   }
 }
 

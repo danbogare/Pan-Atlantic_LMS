@@ -201,3 +201,37 @@ export class InvalidAnswerFormatError extends AppError {
     super(400, message);
   }
 }
+
+// Upstream service (e.g. a payment provider) failed or could not be reached
+export class ExternalServiceError extends AppError {
+  constructor(
+    message: string,
+    // Status returned by the upstream service, if it responded at all
+    public readonly upstreamStatus?: number,
+    public readonly upstreamBody?: unknown
+  ) {
+    super(502, message, "EXTERNAL_SERVICE_ERROR");
+  }
+}
+
+export class PaymentNotFoundError extends AppError {
+  constructor(message: string = "Payment not found") {
+    super(404, message);
+  }
+}
+
+export class CourseNotAvailableError extends AppError {
+  constructor(message: string = "This course is not open for applications") {
+    super(400, message, "COURSE_NOT_AVAILABLE");
+  }
+}
+
+export class CourseHasStudentsError extends AppError {
+  constructor(count: number) {
+    super(
+      409,
+      `This course cannot be deleted because ${count} student${count === 1 ? " is" : "s are"} linked to it`,
+      "COURSE_HAS_STUDENTS"
+    );
+  }
+}

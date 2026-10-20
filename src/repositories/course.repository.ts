@@ -30,6 +30,8 @@ export interface ICourseRepository {
   getStudentEnrollments(studentId: string): Promise<any[]>;
   updateEnrollmentStatus(enrollmentId: string, status: EnrollmentStatus): Promise<IEnrollment | null>;
   getEnrollmentCount(courseId: string): Promise<number>;
+  // Every enrollment regardless of status (active, completed or dropped)
+  countAllEnrollments(courseId: string): Promise<number>;
   
   // Instructor Assignment
   assignInstructor(assignmentData: Partial<IInstructorAssignment>): Promise<IInstructorAssignment>;
@@ -122,13 +124,11 @@ export class CourseRepository implements ICourseRepository {
   }
 
   public async delete(id: string): Promise<void> {
-    // Soft delete - just archive
-    await this.courseModel
-      .findByIdAndUpdate(id, { 
-        status: CourseStatus.ARCHIVED, 
-        archivedAt: new Date() 
-      })
-      .exec();
+    // Hard delete - removes the course and its instructor assignments
+    await Promise.all([
+      this.courseModel.findByIdAndDelete(id).exec(),
+      this.instructorAssignmentModel.deleteMany({ course: id }).exec(),
+    ]);
   }
 
   // COURSE WITH RELATIONSHIPS
@@ -254,6 +254,10 @@ export class CourseRepository implements ICourseRepository {
       course: courseId,
       status: EnrollmentStatus.ACTIVE
     });
+  }
+
+  public async countAllEnrollments(courseId: string): Promise<number> {
+    return await this.enrollmentModel.countDocuments({ course: courseId });
   }
 
   // INSTRUCTOR ASSIGNMENT OPERATIONS

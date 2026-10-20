@@ -41,6 +41,11 @@ export interface IAuthMiddleware {
     res: Response,
     next: NextFunction
   ) => Promise<void>;
+  requireStudent: (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => Promise<void>;
 }
 
 export class AuthMiddleware implements IAuthMiddleware {
@@ -92,6 +97,18 @@ export class AuthMiddleware implements IAuthMiddleware {
     const allowedRoles = [UserRole.INSTRUCTOR, UserRole.ADMIN];
     if (!req.user?.role || !allowedRoles.includes(req.user.role)) {
       throw new ForbiddenError();
+    }
+
+    next();
+  };
+
+  public requireStudent = async (
+    req: Request,
+    _res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    if (req.user?.role !== UserRole.STUDENT) {
+      throw new ForbiddenError("Only students can perform this action");
     }
 
     next();

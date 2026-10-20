@@ -22,6 +22,12 @@ export interface ICloudinaryConfig {
   apiSecret: string;
 }
 
+export interface IFlutterwaveConfig {
+  flwUri: string;
+  flwSecret: string;
+  flwKey: string;
+}
+
 
 interface EnvConfig {
   nodeEnv: string;
@@ -35,6 +41,7 @@ interface EnvConfig {
   mailFrom: string;
   trustProxy: number;
   cloudinary: ICloudinaryConfig
+  flutterwave: IFlutterwaveConfig
 }
 // Reads a required env var or throws immediately.
 function requireEnv(key: string): string {
@@ -82,5 +89,10 @@ export const env: EnvConfig = {
     cloudName: requireEnv('CLOUDINARY_CLOUD_NAME'),
     apiKey: requireEnv('CLOUDINARY_API_KEY'),
     apiSecret: requireEnv('CLOUDINARY_API_SECRET'),
+  },
+  flutterwave: {
+    flwUri: requireEnv('FLW_URI'),
+    flwSecret: requireEnv('FLW_SECRET'),
+    flwKey: requireEnv('FLW_KEY'),
   }
 };

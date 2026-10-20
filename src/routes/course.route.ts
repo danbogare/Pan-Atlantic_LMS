@@ -19,6 +19,7 @@ import { ICourseAccessMiddleware, CourseResolver } from "../middlewares/course-a
 import { uploadThumbnail, uploadLessonFile } from "../middlewares/upload.middleware";
 import { IDiscussionController } from "../controllers/discussion.controller";
 import { createDiscussionSchema, createReplySchema } from "../validators/discussion.validator";
+import { IPaymentController } from "../controllers/payment.controller";
 
 export class CourseRouter {
   private readonly router = Router();
@@ -28,6 +29,7 @@ export class CourseRouter {
     private readonly authMiddleware: IAuthMiddleware,
     private readonly discussionController: IDiscussionController,
     private readonly courseAccess: ICourseAccessMiddleware,
+    private readonly paymentController: IPaymentController,
   ) {
     this.initializeRoutes();
   }
@@ -94,6 +96,14 @@ export class CourseRouter {
       validate(createReplySchema),
       learn(discussion),
       asyncHandler(this.discussionController.addReply)
+    );
+
+    // STUDENT ROUTES
+    // Apply for a published course: returns a Flutterwave checkout link (free courses enroll immediately)
+    this.router.post(
+      "/:courseId/apply",
+      asyncHandler(this.authMiddleware.requireStudent),
+      asyncHandler(this.paymentController.applyForCourse)
     );
 
     // ADMIN & INSTRUCTOR ROUTES
@@ -187,7 +197,7 @@ export class CourseRouter {
       asyncHandler(this.courseController.updateCourse)
     );
 
-    // Delete course (archive)
+    // Delete course permanently (only when no student is linked to it)
     this.router.delete(
       "/:courseId",
       asyncHandler(this.courseController.deleteCourse)

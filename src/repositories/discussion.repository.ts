@@ -8,6 +8,8 @@ export interface IDiscussionRepository {
   getDiscussionWithReplies(discussionId: string): Promise<any>;
   addReply(replyData: Partial<IDiscussionReply>): Promise<IDiscussionReply>;
   getReplies(discussionId: string): Promise<IDiscussionReply[]>;
+  // Removes every discussion of a course with its replies
+  deleteByCourse(courseId: string): Promise<void>;
 }
 
 export class DiscussionRepository implements IDiscussionRepository {
@@ -69,5 +71,13 @@ export class DiscussionRepository implements IDiscussionRepository {
       .populate('author', 'firstName lastName')
       .sort({ createdAt: 1 })
       .exec();
+  }
+
+  public async deleteByCourse(courseId: string): Promise<void> {
+    const discussionIds = await this.discussionModel.find({ course: courseId }).distinct('_id').exec();
+    await Promise.all([
+      this.replyModel.deleteMany({ discussion: { $in: discussionIds } }).exec(),
+      this.discussionModel.deleteMany({ course: courseId }).exec(),
+    ]);
   }
 }

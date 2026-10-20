@@ -76,6 +76,12 @@ import { QuizService } from "./services/quiz.service";
 import { QuizController } from "./controllers/quiz.controller";
 import { QuizRouter } from "./routes/quiz.route";
 import { InstructorRouter } from "./routes/instructor.route";
+import { Payment } from "./models/payment.model";
+import { PaymentRepository } from "./repositories/payment.repository";
+import { FlutterwaveService } from "./services/flutterwave.service";
+import { PaymentService } from "./services/payment.service";
+import { PaymentController } from "./controllers/payment.controller";
+import { PaymentRouter } from "./routes/payment.route";
 
 class App {
   public readonly instance: Application;
@@ -155,6 +161,7 @@ class App {
     const notificationRepository = new NotificationRepository(Notification);
     const quizRepository = new QuizRepository(Quiz);
     const quizAttemptRepository = new QuizAttemptRepository(QuizAttempt);
+    const paymentRepository = new PaymentRepository(Payment);
 
     // services
     const cryptoService = new CryptoService(env.jwtSecret);
@@ -165,7 +172,14 @@ class App {
     const authService = new AuthService(userRepository, otpRepository, mailService, cryptoService);
     const userService = new UserService(userRepository, courseRepository, mailService, cryptoService);
     const storageService = new CloudinaryService(env.cloudinary);
-    const courseService = new CourseService(courseRepository, courseContentRepository, storageService, userRepository);
+    const courseService = new CourseService(
+      courseRepository,
+      courseContentRepository,
+      storageService,
+      userRepository,
+      quizRepository,
+      discussionRepository
+    );
     const courseAccessService = new CourseAccessService(
       courseRepository,
       courseContentRepository,
@@ -183,6 +197,14 @@ class App {
     const statsService = new StatsService(statsRepository);
     const notificationService = new NotificationService(notificationRepository, userRepository);
     const quizService = new QuizService(quizRepository, quizAttemptRepository, courseContentRepository);
+    const flutterwaveService = new FlutterwaveService(env.flutterwave);
+    const paymentService = new PaymentService(
+      paymentRepository,
+      courseRepository,
+      userRepository,
+      flutterwaveService,
+      `${env.apiUrl}/payments/verify`
+    );
 
     // middlware
     const authMiddleware = new AuthMiddleware(cryptoService, userRepository);
@@ -201,6 +223,7 @@ class App {
     const statsController = new StatsController(statsService);
     const notificationController = new NotificationController(notificationService);
     const quizController = new QuizController(quizService);
+    const paymentController = new PaymentController(paymentService);
 
     // routes
     const authRouter = new AuthRouter(authController, authMiddleware);
@@ -218,7 +241,13 @@ class App {
       submissionController,
       courseAccessMiddleware
     );
-    const courseRouter = new CourseRouter(courseController, authMiddleware, discussionController, courseAccessMiddleware);
+    const courseRouter = new CourseRouter(
+      courseController,
+      authMiddleware,
+      discussionController,
+      courseAccessMiddleware,
+      paymentController
+    );
     const noteRouter = new NoteRouter(noteController, authMiddleware, courseAccessMiddleware);
     const assignmentRouter = new AssignmentRouter(submissionController, authMiddleware, courseAccessMiddleware);
     const certificateRouter = new CertificateRouter(certificateController, authMiddleware);
@@ -228,6 +257,7 @@ class App {
     const quizRouter = new QuizRouter(quizController, authMiddleware, courseAccessMiddleware);
     const publicRouter = new PublicRouter(courseController);
     const userRouter = new UserRouter(userController, authMiddleware);
+    const paymentRouter = new PaymentRouter(paymentController);
 
     this.instance.use("/public", publicRouter.getRouter());
     this.instance.use("/auth", authRouter.getRouter());
@@ -243,6 +273,7 @@ class App {
     this.instance.use("/notifications", notificationRouter.getRouter());
     this.instance.use("/student/quizzes", quizRouter.getRouter());
     this.instance.use("/instructor", instructorRouter.getRouter());
+    this.instance.use("/payments", paymentRouter.getRouter());
   }
 
   private initialize404Handling(): void {

@@ -16,6 +16,8 @@ export interface ICourseContentRepository {
   getModuleLessons(moduleId: string): Promise<ICourseLesson[]>;
   updateLesson(id: string, updateData: Partial<ICourseLesson>): Promise<ICourseLesson | null>;
   deleteLesson(id: string): Promise<void>;
+  // Removes every module and lesson of a course
+  deleteCourseContent(courseId: string): Promise<void>;
   reorderLessons(moduleId: string, lessonOrders: { id: string; order: number }[]): Promise<void>;
   
   // Complex Queries
@@ -135,6 +137,13 @@ export class CourseContentRepository implements ICourseContentRepository {
 
   public async deleteLesson(id: string): Promise<void> {
     await this.lessonModel.findByIdAndDelete(id);
+  }
+
+  public async deleteCourseContent(courseId: string): Promise<void> {
+    await Promise.all([
+      this.courseModuleModel.deleteMany({ course: courseId }),
+      this.lessonModel.deleteMany({ course: courseId })
+    ]);
   }
 
   public async reorderLessons(
