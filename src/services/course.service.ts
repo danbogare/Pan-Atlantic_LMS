@@ -14,6 +14,7 @@ import {
   CourseTypeNotAllowedError,
   CourseNotFoundError,
   EnrollmentNotFoundError,
+  InstructorNotAssignedError,
   LessonNotFoundError,
   ModuleNotFoundError,
 } from "../errors/error";
@@ -92,6 +93,9 @@ export interface ICourseService {
   ): Promise<void>;
 
   enrollStudent(courseId: string, studentId: string, enrolledBy: string): Promise<any>
+  // Marks the enrollment dropped: access ends, history (progress, submissions, attempts) is kept
+  unenrollStudent(courseId: string, studentId: string): Promise<void>;
+  unassignInstructor(courseId: string, instructorId: string): Promise<void>;
   getCourseStats(courseId: string): Promise<any>
 }
 
@@ -656,7 +660,9 @@ export class CourseService implements ICourseService {
       throw new BadRequestError("studentId must belong to an existing student");
     }
 
-    if (await this.courseRepo.findEnrollment(studentId, courseId)) {
+    // A dropped (unenrolled) student can be enrolled again; the repository reactivates their enrollment
+    const existing = await this.courseRepo.findEnrollment(studentId, courseId);
+    if (existing && existing.status !== EnrollmentStatus.DROPPED) {
       throw new AlreadyEnrolledError();
     }
 
@@ -666,6 +672,27 @@ export class CourseService implements ICourseService {
       enrolledBy : new Types.ObjectId(enrolledBy),
       ...computeAccessWindow(course.duration ?? 0),
     });
+  }
+
+  public async unenrollStudent(courseId: string, studentId: string): Promise<void> {
+    await this.getCourseById(courseId);
+
+    const enrollment = await this.courseRepo.findEnrollment(studentId, courseId);
+    if (!enrollment || enrollment.status === EnrollmentStatus.DROPPED) {
+      throw new EnrollmentNotFoundError(`Student ${studentId} is not enrolled in course ${courseId}`);
+    }
+
+    await this.courseRepo.updateEnrollmentStatus(enrollment._id.toString(), EnrollmentStatus.DROPPED);
+  }
+
+  public async unassignInstructor(courseId: string, instructorId: string): Promise<void> {
+    await this.getCourseById(courseId);
+
+    if (!(await this.courseRepo.isInstructorAssigned(instructorId, courseId))) {
+      throw new InstructorNotAssignedError(`Instructor ${instructorId} is not assigned to course ${courseId}`);
+    }
+
+    await this.courseRepo.removeInstructor(instructorId, courseId);
   }
 
   // Extend or renew a student's access. Active access grows from its current expiry; expired,

@@ -116,6 +116,12 @@ export class EnrollmentNotFoundError extends AppError {
   }
 }
 
+export class InstructorNotAssignedError extends AppError {
+  constructor(message: string = "Instructor is not assigned to this course") {
+    super(404, message);
+  }
+}
+
 export class AlreadyEnrolledError extends AppError {
   constructor() {
     super(409, "Student is already enrolled in this course");

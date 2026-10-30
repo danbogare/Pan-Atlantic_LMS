@@ -203,6 +203,18 @@ export class CourseRouter {
       asyncHandler(this.courseController.extendStudentAccess)
     );
 
+    // Unenroll a student (enrollment marked dropped; their history is kept and they can be enrolled again)
+    this.router.delete(
+      "/:courseId/students/:studentId",
+      asyncHandler(this.courseController.unenrollStudent)
+    );
+
+    // Unassign an instructor from a course (they can be assigned again later)
+    this.router.delete(
+      "/:courseId/instructors/:instructorId",
+      asyncHandler(this.courseController.unassignInstructor)
+    );
+
     // ADMIN ONLY ROUTES
     this.router.use(asyncHandler(this.authMiddleware.requireAdmin));
 

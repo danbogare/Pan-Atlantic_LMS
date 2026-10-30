@@ -13,7 +13,7 @@ import {
   CourseTypeNotAllowedError,
   PaymentNotFoundError,
 } from "../errors/error";
-import { CourseStatus, CourseType, ICourse, IEnrollment } from "../models/course.model";
+import { CourseStatus, CourseType, EnrollmentStatus, ICourse, IEnrollment } from "../models/course.model";
 import { IPayment, PaymentStatus } from "../models/payment.model";
 import { UserRole } from "../models/user.model";
 import { IAuthUserPayload } from "../interfaces/auth.interface";
@@ -67,7 +67,9 @@ export class PaymentService implements IPaymentService {
       throw new BadRequestError("Only students can apply for a course");
     }
 
-    if (await this.courseRepo.findEnrollment(studentId, courseId)) {
+    // A dropped (unenrolled) student may apply again
+    const existing = await this.courseRepo.findEnrollment(studentId, courseId);
+    if (existing && existing.status !== EnrollmentStatus.DROPPED) {
       throw new AlreadyEnrolledError();
     }
 
@@ -244,7 +246,8 @@ export class PaymentService implements IPaymentService {
   private async enroll(course: ICourse, studentId: string): Promise<IEnrollment> {
     const courseId = course._id.toString();
     const existing = await this.courseRepo.findEnrollment(studentId, courseId);
-    if (existing) return existing;
+    // A dropped enrollment is reactivated by enrollStudent below
+    if (existing && existing.status !== EnrollmentStatus.DROPPED) return existing;
 
     try {
       return await this.courseRepo.enrollStudent({

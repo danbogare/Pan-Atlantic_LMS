@@ -63,7 +63,8 @@ export function registerPaymentDocs(): void {
       "After checkout Flutterwave redirects to `GET /payments/verify`, which enrolls the student once the payment is confirmed. " +
       "For a free course (price 0) the student is enrolled immediately and `enrollment` is returned instead. " +
       "Only published courses accept applications (400 with `code: COURSE_NOT_AVAILABLE` otherwise), and only " +
-      "**professional** ones: academic courses return 400 with `code: COURSE_TYPE_NOT_ALLOWED`, since an admin enrolls students in those.",
+      "**professional** ones: academic courses return 400 with `code: COURSE_TYPE_NOT_ALLOWED`, since an admin enrolls students in those. " +
+      "409 if the student is already enrolled; a student who was unenrolled may apply again and is re-enrolled with their progress kept.",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: CourseIdParam },
     responses: {

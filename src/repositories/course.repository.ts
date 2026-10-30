@@ -19,6 +19,7 @@ export interface ICourseRepository {
   findCoursesByStudent(studentId: string): Promise<any[]>;
   
   // Enrollment
+  // Reactivates a dropped enrollment instead of creating a second one (student+course is unique)
   enrollStudent(enrollmentData: Partial<IEnrollment>): Promise<IEnrollment>;
   findEnrollment(studentId: string, courseId: string): Promise<IEnrollment | null>;
   findEnrollmentsByStudent(studentId: string): Promise<IEnrollment[]>;
@@ -26,6 +27,7 @@ export interface ICourseRepository {
     enrollmentId: string,
     access: { accessStartsAt?: Date; accessExpiresAt: Date | null }
   ): Promise<IEnrollment | null>;
+  // Excludes dropped (unenrolled) students
   getEnrolledStudents(courseId: string): Promise<any[]>;
   getStudentEnrollments(studentId: string): Promise<any[]>;
   updateEnrollmentStatus(enrollmentId: string, status: EnrollmentStatus): Promise<IEnrollment | null>;
@@ -35,6 +37,7 @@ export interface ICourseRepository {
   countAllEnrollments(courseId: string): Promise<number>;
   
   // Instructor Assignment
+  // Reactivates an inactive (unassigned) assignment instead of creating a second one (instructor+course is unique)
   assignInstructor(assignmentData: Partial<IInstructorAssignment>): Promise<IInstructorAssignment>;
   findAssignedCourseIds(instructorId: string): Promise<string[]>;
   removeInstructor(instructorId: string, courseId: string): Promise<void>;
@@ -192,8 +195,24 @@ export class CourseRepository implements ICourseRepository {
       course: enrollmentData.course
     });
 
-    if (existing) {
+    if (existing && existing.status !== EnrollmentStatus.DROPPED) {
       throw new Error('Student is already enrolled in this course');
+    }
+
+    if (existing) {
+      // Re-enrolling after being dropped: progress is kept, and a course already completed stays completed
+      const { student: _student, course: _course, ...rejoin } = enrollmentData;
+      return (await this.enrollmentModel
+        .findByIdAndUpdate(
+          existing._id,
+          {
+            ...rejoin,
+            enrolledAt: new Date(),
+            status: existing.completedAt ? EnrollmentStatus.COMPLETED : EnrollmentStatus.ACTIVE,
+          },
+          { new: true }
+        )
+        .exec())!;
     }
 
     return await this.enrollmentModel.create(enrollmentData);
@@ -220,7 +239,7 @@ export class CourseRepository implements ICourseRepository {
 
   public async getEnrolledStudents(courseId: string): Promise<any[]> {
     return await this.enrollmentModel
-      .find({ course: courseId })
+      .find({ course: courseId, status: { $ne: EnrollmentStatus.DROPPED } })
       .populate('student', 'firstName lastName email')
       .sort({ enrolledAt: -1 })
       .lean();
@@ -277,8 +296,19 @@ export class CourseRepository implements ICourseRepository {
       course: assignmentData.course
     });
 
-    if (existing) {
+    if (existing && existing.status === AssignmentStatus.ACTIVE) {
       throw new Error('Instructor is already assigned to this course');
+    }
+
+    if (existing) {
+      const { instructor: _instructor, course: _course, ...reassign } = assignmentData;
+      return (await this.instructorAssignmentModel
+        .findByIdAndUpdate(
+          existing._id,
+          { ...reassign, assignedAt: new Date(), status: AssignmentStatus.ACTIVE },
+          { new: true }
+        )
+        .exec())!;
     }
 
     return await this.instructorAssignmentModel.create(assignmentData);
@@ -295,7 +325,7 @@ export class CourseRepository implements ICourseRepository {
   public async removeInstructor(instructorId: string, courseId: string): Promise<void> {
     await this.instructorAssignmentModel.findOneAndUpdate(
       { instructor: instructorId, course: courseId },
-      { status: AssignmentStatus.INACTIVE, endedAt: new Date() }
+      { status: AssignmentStatus.INACTIVE }
     );
   }
 
@@ -336,7 +366,8 @@ export class CourseRepository implements ICourseRepository {
   // COMPLEX QUERIES
   public async getCourseStats(courseId: string): Promise<CourseStats> {
     const stats = await this.enrollmentModel.aggregate([
-      { $match: { course: new Types.ObjectId(courseId) } },
+      // Dropped (unenrolled) students don't count towards the course's numbers
+      { $match: { course: new Types.ObjectId(courseId), status: { $ne: EnrollmentStatus.DROPPED } } },
       {
         $group: {
           _id: null,

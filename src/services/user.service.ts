@@ -12,7 +12,7 @@ import {
 } from "../errors/error";
 import { ICryptoService } from "./crypto.service";
 import { Types } from "mongoose";
-import { CourseType, ICourse } from "../models/course.model";
+import { CourseType, EnrollmentStatus, ICourse } from "../models/course.model";
 import { computeAccessWindow } from "../utils/course-access";
 import { withCurrentStreak } from "../utils/streak";
 import {
@@ -269,7 +269,9 @@ export class UserService implements IUserService {
     const alreadyEnrolledCourseIds: string[] = [];
     for (const course of courses) {
       const courseId = course._id.toString();
-      if (await this.courseRepository.findEnrollment(studentId, courseId)) {
+      const existing = await this.courseRepository.findEnrollment(studentId, courseId);
+      // A dropped (unenrolled) student can be enrolled again; the repository reactivates their enrollment
+      if (existing && existing.status !== EnrollmentStatus.DROPPED) {
         alreadyEnrolledCourseIds.push(courseId);
       } else {
         toEnroll.push(course);

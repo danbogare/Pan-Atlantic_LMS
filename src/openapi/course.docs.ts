@@ -81,6 +81,7 @@ const ModuleIdParam = z.object({ moduleId: z.string().openapi({ example: "clv9y.
 const LessonIdParam = z.object({ lessonId: z.string().openapi({ example: "clv9z...ghi" }) });
 
 const StudentIdParam = z.object({ studentId: z.string().openapi({ example: "665f1c2e8b3e4a0012ab34cd" }) });
+const InstructorIdParam = z.object({ instructorId: z.string().openapi({ example: "665f1c2e8b3e4a0012ab34ef" }) });
 
 // Mirrors ICourse in models/course.model.ts
 const CourseSchema = registry.register(
@@ -247,7 +248,9 @@ export function registerCourseDocs() {
     path: "/courses/{courseId}/students",
     tags: ["Courses"],
     summary: "Get enrolled students by course id",
-    description: "Admin, an instructor assigned to the course, or an external assessor. Each enrollment includes the student's stored `progress` %.",
+    description:
+      "Admin, an instructor assigned to the course, or an external assessor. Each enrollment includes the student's stored `progress` %. " +
+      "Unenrolled (`dropped`) students are not listed.",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: CourseIdParam },
     responses: {
@@ -340,6 +343,7 @@ export function registerCourseDocs() {
     tags: ["Courses"],
     security: [{ [bearerAuth.name]: [] }],
     summary: "Get course stats by course id",
+    description: "Unenrolled (`dropped`) students are not counted.",
     request: { params: CourseIdParam },
     responses: {
       200: successEnvelope(z.object({ enrolledCount: z.number(), completionRate: z.number() }), "Course statistics"),
@@ -476,7 +480,9 @@ export function registerCourseDocs() {
     description:
       "Academic courses only; professional courses return 400 with `code: COURSE_TYPE_NOT_ALLOWED` (students apply for those " +
       "through `POST /courses/{courseId}/apply`). " +
-      "The student's access starts at midnight (Africa/Lagos) the day after enrollment and lasts the course's `duration` in days.",
+      "The student's access starts at midnight (Africa/Lagos) the day after enrollment and lasts the course's `duration` in days. " +
+      "409 if the student is already enrolled. A previously unenrolled (`dropped`) student is re-enrolled: their old enrollment " +
+      "is reactivated with a fresh access window and their progress is kept (a course they had completed stays completed).",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: CourseIdParam, body: { content: { "application/json": { schema: enrollInCourseSchema } } } },
     responses: {
@@ -514,6 +520,36 @@ export function registerCourseDocs() {
     },
   });
 
+  registry.registerPath({
+    method: "delete",
+    path: "/courses/{courseId}/students/{studentId}",
+    tags: ["Courses"],
+    summary: "Unenroll a student from a course (admin)",
+    description:
+      "The enrollment is marked `dropped`: the student loses access and no longer appears in the course's students or stats. " +
+      "Their progress, submissions and quiz attempts are kept, and they can be enrolled (or apply) again later, which restores them.",
+    security: [{ [bearerAuth.name]: [] }],
+    request: { params: CourseIdParam.merge(StudentIdParam) },
+    responses: {
+      200: successEnvelope(z.object({}).openapi({ example: {} }), "Student unenrolled"),
+      ...pick(errorResponses, 400, 401, 403, 404),
+    },
+  });
+
+  registry.registerPath({
+    method: "delete",
+    path: "/courses/{courseId}/instructors/{instructorId}",
+    tags: ["Courses"],
+    summary: "Unassign an instructor from a course (admin)",
+    description: "The instructor loses access to the course immediately. They can be assigned again later.",
+    security: [{ [bearerAuth.name]: [] }],
+    request: { params: CourseIdParam.merge(InstructorIdParam) },
+    responses: {
+      200: successEnvelope(z.object({}).openapi({ example: {} }), "Instructor unassigned"),
+      ...pick(errorResponses, 400, 401, 403, 404),
+    },
+  });
+
   // ---- ADMIN ONLY ----
 
   registry.registerPath({
@@ -540,6 +576,9 @@ export function registerCourseDocs() {
     path: "/courses/{courseId}",
     tags: ["Courses"],
     summary: "Update a course by Admin",
+    description:
+      "`instructorIds`, when sent, replaces the course's instructors: those left out are unassigned, new ones are assigned. " +
+      "A previously unassigned instructor can be added back.",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: CourseIdParam, body: { content: { "application/json": { schema: updateCourseSchema } } } },
     responses: { 200: successEnvelope(CourseSchema, "Course updated"), ...pick(errorResponses, 400, 401, 403, 404) },

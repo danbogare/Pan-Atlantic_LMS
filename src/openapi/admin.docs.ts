@@ -25,7 +25,8 @@ export function registerAdminDocs() {
       "to the new user (it is never returned to the admin), and sets `mustChangePassword: true`. If enrollment fails nothing is created.\n\n" +
       "**Existing student** (e.g. self-registered, paid into the LMS account and verified by the admin): no new account and no email; " +
       "the student is just enrolled. `firstName`/`lastName` are ignored. Courses they are already in are skipped " +
-      "(`alreadyEnrolledCourseIds`); 409 if they are already in all of them. 400 if the email belongs to a non-student account.\n\n" +
+      "(`alreadyEnrolledCourseIds`); 409 if they are already in all of them. Courses they were unenrolled from count as not enrolled, " +
+      "so they are re-enrolled (progress kept). 400 if the email belongs to a non-student account.\n\n" +
       "Duplicate course IDs are ignored.",
     request: { body: { content: { "application/json": { schema: enrollStudentSchema } } } },
     responses: {

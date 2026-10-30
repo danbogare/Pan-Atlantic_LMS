@@ -38,6 +38,8 @@ export interface ICourseController {
   getStudentCourseProgress: (req: Request, res: Response) => Promise<void>;
   getCourseStats: (req: Request, res: Response) => Promise<void>;
   enrollStudent: (req: Request<{ courseId: string }, {}, EnrollInCourseInput>, res: Response) => Promise<void>;
+  unenrollStudent: (req: Request, res: Response) => Promise<void>;
+  unassignInstructor: (req: Request, res: Response) => Promise<void>;
   extendStudentAccess: (
     req: Request<{ courseId: string; studentId: string }, {}, ExtendAccessInput>,
     res: Response
@@ -236,6 +238,18 @@ export class CourseController implements ICourseController {
 
     const enrollment = await this.courseService.enrollStudent(courseId, studentId, adminId);
     createdSuccessResponse(res, "Student enrolled successfully", enrollment);
+  };
+
+  public unenrollStudent = async (req: Request, res: Response): Promise<void> => {
+    const { courseId, studentId } = req.params;
+    await this.courseService.unenrollStudent(courseId as string, studentId as string);
+    successResponse(res, "Student unenrolled successfully", {});
+  };
+
+  public unassignInstructor = async (req: Request, res: Response): Promise<void> => {
+    const { courseId, instructorId } = req.params;
+    await this.courseService.unassignInstructor(courseId as string, instructorId as string);
+    successResponse(res, "Instructor unassigned successfully", {});
   };
 
   public extendStudentAccess = async (
