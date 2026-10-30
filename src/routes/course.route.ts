@@ -20,6 +20,7 @@ import { uploadThumbnail, uploadLessonFile } from "../middlewares/upload.middlew
 import { IDiscussionController } from "../controllers/discussion.controller";
 import { createDiscussionSchema, createReplySchema } from "../validators/discussion.validator";
 import { IPaymentController } from "../controllers/payment.controller";
+import { ICourseActivityController } from "../controllers/course-activity.controller";
 
 export class CourseRouter {
   private readonly router = Router();
@@ -30,6 +31,7 @@ export class CourseRouter {
     private readonly discussionController: IDiscussionController,
     private readonly courseAccess: ICourseAccessMiddleware,
     private readonly paymentController: IPaymentController,
+    private readonly activityController: ICourseActivityController,
   ) {
     this.initializeRoutes();
   }
@@ -45,42 +47,64 @@ export class CourseRouter {
     // AUTHENTICATED ROUTES
     // Content routes need course access: admin, an assigned instructor, or a student whose
     // enrollment is active and not expired. Student/stats views need admin or an assigned instructor.
+    // External assessors are read-only: `view`/`oversee` let them through on GET routes only.
     const learn = (resolve: CourseResolver) => asyncHandler(this.courseAccess.requireLearnAccess(resolve));
-    const manage = (resolve: CourseResolver) => asyncHandler(this.courseAccess.requireManageAccess(resolve));
+    const view = (resolve: CourseResolver) => asyncHandler(this.courseAccess.requireViewAccess(resolve));
+    const oversee = (resolve: CourseResolver) => asyncHandler(this.courseAccess.requireOversightAccess(resolve));
     const course = this.courseAccess.fromParam("courseId");
     const discussion = this.courseAccess.fromDiscussionParam("discussionId", "courseId");
 
-    // List courses visible to the caller (admin: all, instructor: assigned, student: enrolled)
+    // List courses visible to the caller (admin/external assessor: all, instructor: assigned, student: enrolled)
     this.router.get("/", asyncHandler(this.courseController.getAllCourses));
 
     // Get course full details (modules, lessons, instructors, stats)
-    this.router.get("/:courseId", learn(course), asyncHandler(this.courseController.getFullCourseDetails));
+    this.router.get("/:courseId", view(course), asyncHandler(this.courseController.getFullCourseDetails));
 
     // Get course with instructors
-    this.router.get("/:courseId/instructors", learn(course), asyncHandler(this.courseController.getCourseWithInstructors));
+    this.router.get("/:courseId/instructors", view(course), asyncHandler(this.courseController.getCourseWithInstructors));
 
     // Get course with students
-    this.router.get("/:courseId/students", manage(course), asyncHandler(this.courseController.getCourseWithStudents));
+    this.router.get("/:courseId/students", oversee(course), asyncHandler(this.courseController.getCourseWithStudents));
+
+    // Get one student's progress in the course (enrollment + completed lessons)
+    this.router.get(
+      "/:courseId/students/:studentId/progress",
+      oversee(course),
+      asyncHandler(this.courseController.getStudentCourseProgress)
+    );
+
+    // Get one student's assignment submissions and quiz attempts (with correct answers), grouped by lesson
+    this.router.get(
+      "/:courseId/students/:studentId/activity",
+      oversee(course),
+      asyncHandler(this.activityController.getStudentActivity)
+    );
+
+    // Every assignment submission in the course (?studentId=&status=)
+    this.router.get("/:courseId/submissions", oversee(course), asyncHandler(this.activityController.getCourseSubmissions));
+
+    // Every quiz attempt in the course, with correct answers (?studentId=&status=)
+    this.router.get("/:courseId/quiz-attempts", oversee(course), asyncHandler(this.activityController.getCourseQuizAttempts));
 
     // Get course stats
-    this.router.get("/:courseId/stats", manage(course), asyncHandler(this.courseController.getCourseStats));
+    this.router.get("/:courseId/stats", oversee(course), asyncHandler(this.courseController.getCourseStats));
 
     // Get course modules with lessons
-    this.router.get("/:courseId/modules", learn(course), asyncHandler(this.courseController.getCourseModules));
+    this.router.get("/:courseId/modules", view(course), asyncHandler(this.courseController.getCourseModules));
 
     // Get module lessons
     this.router.get(
       "/modules/:moduleId/lessons",
-      learn(this.courseAccess.fromModuleParam("moduleId")),
+      view(this.courseAccess.fromModuleParam("moduleId")),
       asyncHandler(this.courseController.getModuleLessons)
     );
 
     // Discussions
-    this.router.get("/:courseId/discussions", learn(course), asyncHandler(this.discussionController.getCourseDiscussions));
+    this.router.get("/:courseId/discussions", view(course), asyncHandler(this.discussionController.getCourseDiscussions));
 
     this.router.get(
       "/:courseId/discussions/:discussionId",
-      learn(discussion),
+      view(discussion),
       asyncHandler(this.discussionController.getDiscussionById)
     );
 

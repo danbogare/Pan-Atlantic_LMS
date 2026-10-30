@@ -3,6 +3,7 @@ import { z } from "zod";
 import { registry, bearerAuth, successEnvelope, errorResponses, pick, jsonContent, ErrorResponseSchema } from "./registry";
 import { enrollStudentSchema } from "../validators/student.validator";
 import { inviteInstructorSchema } from "../validators/instructor.validator";
+import { inviteExternalAssessorSchema } from "../validators/external-assessor.validator";
 import { updateUserInfoSchema } from "../validators/user.validator";
 import { createNotificationSchema, broadcastNotificationSchema } from "../validators/notification.validator";
 
@@ -58,6 +59,32 @@ export function registerAdminDocs() {
       ...pick(errorResponses, 400, 401, 403, 409),
     },
   });
+
+  registry.registerPath({
+    method: "post",
+    path: "/admin/external-assessor/invite",
+    tags: ["Admin"],
+    security: [{ [bearerAuth.name]: [] }],
+    description:
+      "Creates a read-only external assessor account. They can view every course, its enrolled students and each student's progress, " +
+      "but cannot create or change anything. The system generates a temporary password, emails it only to the new user, " +
+      "and sets `mustChangePassword: true`.",
+    request: { body: { content: { "application/json": { schema: inviteExternalAssessorSchema } } } },
+    responses: {
+      201: successEnvelope(EmptyDataSchema, "Invite email sent successfully"),
+      ...pick(errorResponses, 400, 401, 403, 409),
+    },
+  });
+
+  registry.registerPath({
+    method: "get",
+    path: "/admin/external-assessors",
+    tags: ["Admin"],
+    security: [{ [bearerAuth.name]: [] }],
+    responses: {
+      200: successEnvelope(z.array(z.object({})), "List of active external assessors"),
+    }
+  })
 
   registry.registerPath({
     method: "get",

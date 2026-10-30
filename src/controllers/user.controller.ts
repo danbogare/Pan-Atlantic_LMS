@@ -4,11 +4,15 @@ import { createdSuccessResponse, successResponse } from "../utils/response";
 import { EnrollStudentInput } from "../validators/student.validator";
 import { EnrollStudentPayload, InviteInstructorPayload } from "../interfaces/user.interface";
 import { InviteInstructorInput } from "../validators/instructor.validator";
+import { InviteExternalAssessorInput } from "../validators/external-assessor.validator";
+import { UserRole } from "../models/user.model";
 import { UpdateProfileInput, UpdateUserInfoInput } from "../validators/user.validator";
 
 export interface IUserController {
   enrollStudent: (req: Request<{}, {}, EnrollStudentInput>, res: Response) => Promise<void>;
   inviteInstructor: (req: Request<{}, {}, InviteInstructorInput>, res: Response) => Promise<void>;
+  inviteExternalAssessor: (req: Request<{}, {}, InviteExternalAssessorInput>, res: Response) => Promise<void>;
+  getAllExternalAssessors: (req: Request, res: Response) => Promise<void>;
   updateUserInfo: (req: Request<{ id: string }, {}, UpdateUserInfoInput>, res: Response) => Promise<void>;
   getAllStudents: (req: Request, res: Response) => Promise<void>;
   getAllInstructors: (req: Request, res: Response) => Promise<void>;
@@ -51,6 +55,18 @@ export class UserController implements IUserController {
     await this.userService.inviteInstructor(invitationData, assignedById);
 
     createdSuccessResponse(res, "invite email sent successfully.", {});
+  };
+  
+  public inviteExternalAssessor = async (req: Request<{}, {}, InviteExternalAssessorInput>, res: Response): Promise<void> => {
+    const { firstName, lastName, email } = req.body;
+    await this.userService.inviteExternalAssessor({ firstName, lastName, email });
+
+    createdSuccessResponse(res, "invite email sent successfully.", {});
+  };
+
+  public getAllExternalAssessors = async (_req: Request, res: Response): Promise<void> => {
+    const assessors = await this.userService.getUsersByRole(UserRole.EXTERNAL_ASSESSOR);
+    successResponse(res, "external assessors retrieved successfully", assessors);
   };
   
   public updateUserInfo = async (req: Request<{ id: string }, {}, UpdateUserInfoInput>, res: Response): Promise<void> => {

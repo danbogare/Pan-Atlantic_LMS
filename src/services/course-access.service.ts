@@ -24,6 +24,10 @@ export interface ICourseAccessService {
   assertCanLearn(user: IAuthUserPayload, courseId: string): Promise<void>;
   // Managing a course's students/grades: admin or assigned instructor
   assertCanManage(user: IAuthUserPayload, courseId: string): Promise<void>;
+  // Read-only viewing of course content: anyone who can learn, plus external assessors (every course)
+  assertCanView(user: IAuthUserPayload, courseId: string): Promise<void>;
+  // Read-only viewing of a course's students/progress/stats: anyone who can manage, plus external assessors
+  assertCanOversee(user: IAuthUserPayload, courseId: string): Promise<void>;
 
   // Resolve the course that a nested resource belongs to
   courseIdForModule(moduleId: string): Promise<string>;
@@ -78,6 +82,16 @@ export class CourseAccessService implements ICourseAccessService {
     }
 
     throw new CourseAccessDeniedError();
+  }
+
+  public async assertCanView(user: IAuthUserPayload, courseId: string): Promise<void> {
+    if (user.role === UserRole.EXTERNAL_ASSESSOR) return;
+    await this.assertCanLearn(user, courseId);
+  }
+
+  public async assertCanOversee(user: IAuthUserPayload, courseId: string): Promise<void> {
+    if (user.role === UserRole.EXTERNAL_ASSESSOR) return;
+    await this.assertCanManage(user, courseId);
   }
 
   public async courseIdForModule(moduleId: string): Promise<string> {

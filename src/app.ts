@@ -20,6 +20,8 @@ import { AuthRouter } from "./routes/auth.route";
 import { AdminRouter } from "./routes/admin.route";
 import { UserRouter } from "./routes/user.route";
 import { CourseRepository } from "./repositories/course.repository";
+import { CourseActivityService } from "./services/course-activity.service";
+import { CourseActivityController } from "./controllers/course-activity.controller";
 import { Course, Enrollment, InstructorAssignment } from "./models/course.model";
 import { CourseContentRepository } from "./repositories/courseModule.repository";
 import { CourseLesson, CourseModule } from "./models/courseModule.model";
@@ -202,6 +204,12 @@ class App {
       submissionRepository,
       discussionRepository
     );
+    const courseActivityService = new CourseActivityService(
+      courseRepository,
+      submissionRepository,
+      quizRepository,
+      quizAttemptRepository
+    );
     const noteService = new NoteService(noteRepository, courseRepository);
     const discussionService = new DiscussionService(discussionRepository, courseRepository);
     const submissionService = new AssignmentSubmissionService(submissionRepository, courseContentRepository);
@@ -231,6 +239,7 @@ class App {
     const certificateController = new CertificateController(certificateService); // now needs courseRepository passed to certificateService below
     const badgeController = new BadgeController(badgeService);
     const progressController = new ProgressController(progressService);
+    const courseActivityController = new CourseActivityController(courseActivityService);
     const statsController = new StatsController(statsService);
     const notificationController = new NotificationController(notificationService);
     const quizController = new QuizController(quizService);
@@ -260,7 +269,8 @@ class App {
       authMiddleware,
       discussionController,
       courseAccessMiddleware,
-      paymentController
+      paymentController,
+      courseActivityController
     );
     const noteRouter = new NoteRouter(noteController, authMiddleware, courseAccessMiddleware);
     const assignmentRouter = new AssignmentRouter(submissionController, authMiddleware, courseAccessMiddleware);

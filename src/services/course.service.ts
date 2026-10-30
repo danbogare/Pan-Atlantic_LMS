@@ -53,7 +53,7 @@ export interface ICourseService {
   createCourse(adminId: string, data: CreateCoursePayload): Promise<ICourse>;
   getCourseById(courseId: string): Promise<ICourse>;
   getAllCourses(filter?: CourseFilter): Promise<ICourse[]>;
-  // Admin: every course; instructor: assigned courses; student: enrolled courses with access info
+  // Admin/external assessor: every course; instructor: assigned courses; student: enrolled courses with access info
   getCoursesForUser(user: IAuthUserPayload, filter: CourseFilter): Promise<any[]>;
   getPublicCourses(query: PublicCourseListQuery): Promise<PaginatedResult<PublicCourse>>;
   getPublicCourseDetails(courseId: string): Promise<any>;
@@ -69,6 +69,8 @@ export interface ICourseService {
   getCourseWithInstructors(courseId: string): Promise<any>;
   getCourseWithInstructors(courseId: string): Promise<any>;
   getCourseWithStudents(courseId: string): Promise<any>;
+  // One enrolled student's progress in a course: stored enrollment state plus the completed lessons
+  getStudentCourseProgress(courseId: string, studentId: string): Promise<any>;
 
   // module
   addModule(courseId: string, data: AddModule): Promise<ICourseModule>;
@@ -162,7 +164,7 @@ export class CourseService implements ICourseService {
   }
 
   public async getCoursesForUser(user: IAuthUserPayload, filter: CourseFilter): Promise<any[]> {
-    if (user.role === UserRole.ADMIN) {
+    if (user.role === UserRole.ADMIN || user.role === UserRole.EXTERNAL_ASSESSOR) {
       return await this.courseRepo.findAll(filter);
     }
 
@@ -411,6 +413,35 @@ export class CourseService implements ICourseService {
     return {
       ...course.toObject(),
       students,
+    };
+  }
+
+  public async getStudentCourseProgress(courseId: string, studentId: string): Promise<any> {
+    const enrollment = Types.ObjectId.isValid(studentId)
+      ? await this.courseRepo.findEnrollment(studentId, courseId)
+      : null;
+    if (!enrollment) {
+      throw new EnrollmentNotFoundError(`Student ${studentId} is not enrolled in course ${courseId}`);
+    }
+
+    const [student, { progress, completedLessonIds }] = await Promise.all([
+      this.userRepo.findById(studentId),
+      this.progressService.getCourseProgress(studentId, courseId),
+    ]);
+
+    return {
+      student: student
+        ? { _id: student._id, firstName: student.firstName, lastName: student.lastName, email: student.email }
+        : null,
+      enrollment: {
+        _id: enrollment._id,
+        status: enrollment.status,
+        enrolledAt: enrollment.enrolledAt,
+        completedAt: enrollment.completedAt,
+        access: summarizeAccess(enrollment),
+      },
+      progress,
+      completedLessonIds,
     };
   }
 

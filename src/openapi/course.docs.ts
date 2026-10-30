@@ -16,6 +16,65 @@ import {
   extendAccessSchema,
 } from "../validators/course.validator";
 import { CourseLevel, CourseStatus, CourseType, Currency } from "../models/course.model";
+import { courseQuizAttemptsQuerySchema, courseSubmissionsQuerySchema } from "../validators/activity.validator";
+
+const PersonRefSchema = z.object({ _id: z.string(), firstName: z.string(), lastName: z.string(), email: z.string().optional() });
+const LessonRefSchema = z.object({ _id: z.string(), title: z.string(), module: z.string(), order: z.number() });
+
+const SubmissionSchema = registry.register(
+  "AssignmentSubmission",
+  z.object({
+    _id: z.string(),
+    student: PersonRefSchema,
+    lesson: LessonRefSchema,
+    course: z.string(),
+    content: z.string().optional(),
+    fileUrl: z.string().optional(),
+    status: z.enum(["submitted", "graded", "resubmit_requested"]),
+    grade: z.number().optional(),
+    feedback: z.string().optional(),
+    gradedBy: PersonRefSchema.optional(),
+    gradedAt: z.string().datetime().optional(),
+    submittedAt: z.string().datetime(),
+  })
+);
+
+const QuizAttemptReviewSchema = registry.register(
+  "QuizAttemptReview",
+  z.object({
+    _id: z.string(),
+    student: PersonRefSchema,
+    lesson: LessonRefSchema,
+    course: z.string(),
+    quiz: z
+      .object({ _id: z.string(), title: z.string(), passingScore: z.number(), timeLimit: z.number().optional() })
+      .nullable()
+      .openapi({ description: "null when the quiz has since been deleted (answers are then returned raw)" }),
+    status: z.enum(["in_progress", "submitted", "graded"]),
+    score: z.number().optional(),
+    passed: z.boolean().optional(),
+    gradedBy: PersonRefSchema.optional(),
+    gradedAt: z.string().datetime().optional(),
+    startedAt: z.string().datetime(),
+    submittedAt: z.string().datetime().optional(),
+    answers: z
+      .array(
+        z.object({
+          questionId: z.string(),
+          text: z.string(),
+          type: z.enum(["multiple_choice", "free_text"]),
+          points: z.number(),
+          options: z.array(z.object({ key: z.string(), text: z.string() })).optional(),
+          correctOption: z.string().optional(),
+          selectedOption: z.string().optional(),
+          textAnswer: z.string().optional(),
+          pointsAwarded: z.number().optional(),
+          isCorrect: z.boolean().optional().openapi({ description: "Multiple choice only; absent when unanswered" }),
+        })
+      )
+      .openapi({ description: "One row per quiz question, including unanswered ones" }),
+  })
+);
 
 const CourseIdParam = z.object({ courseId: z.string().openapi({ example: "clv9x...abc" }) });
 const ModuleIdParam = z.object({ moduleId: z.string().openapi({ example: "clv9y...def" }) });
@@ -188,12 +247,90 @@ export function registerCourseDocs() {
     path: "/courses/{courseId}/students",
     tags: ["Courses"],
     summary: "Get enrolled students by course id",
-    description: "Admin or an instructor assigned to the course.",
+    description: "Admin, an instructor assigned to the course, or an external assessor. Each enrollment includes the student's stored `progress` %.",
     security: [{ [bearerAuth.name]: [] }],
     request: { params: CourseIdParam },
     responses: {
       200: successEnvelope(z.array(z.object({ id: z.string(), name: z.string() })), "Enrolled students"),
       ...pick(errorResponses, 401, 403, 404),
+    },
+  });
+
+  registry.registerPath({
+    method: "get",
+    path: "/courses/{courseId}/students/{studentId}/progress",
+    tags: ["Courses"],
+    summary: "Get one student's progress in a course",
+    description: "Admin, an instructor assigned to the course, or an external assessor. 404 when the student is not enrolled.",
+    security: [{ [bearerAuth.name]: [] }],
+    request: { params: CourseIdParam.merge(StudentIdParam) },
+    responses: {
+      200: successEnvelope(
+        z.object({
+          student: z.object({ _id: z.string(), firstName: z.string(), lastName: z.string(), email: z.string() }).nullable(),
+          enrollment: z.object({
+            _id: z.string(),
+            status: z.string(),
+            enrolledAt: z.string().datetime(),
+            completedAt: z.string().datetime().optional(),
+            access: AccessSummarySchema,
+          }),
+          progress: z.number().openapi({ description: "Percentage of the course's lessons completed (0-100)" }),
+          completedLessonIds: z.array(z.string()),
+        }),
+        "Student course progress"
+      ),
+      ...pick(errorResponses, 401, 403, 404),
+    },
+  });
+
+  registry.registerPath({
+    method: "get",
+    path: "/courses/{courseId}/students/{studentId}/activity",
+    tags: ["Courses"],
+    summary: "Get one student's assignment submissions and quiz attempts in a course",
+    description:
+      "Admin, an instructor assigned to the course, or an external assessor. Grouped by lesson, newest first; " +
+      "quiz attempts include each question's correct answer. 404 when the student is not enrolled.",
+    security: [{ [bearerAuth.name]: [] }],
+    request: { params: CourseIdParam.merge(StudentIdParam) },
+    responses: {
+      200: successEnvelope(
+        z.object({
+          assignments: z.array(z.object({ lesson: LessonRefSchema, submissions: z.array(SubmissionSchema) })),
+          quizzes: z.array(z.object({ lesson: LessonRefSchema, attempts: z.array(QuizAttemptReviewSchema) })),
+        }),
+        "Student activity"
+      ),
+      ...pick(errorResponses, 400, 401, 403, 404),
+    },
+  });
+
+  registry.registerPath({
+    method: "get",
+    path: "/courses/{courseId}/submissions",
+    tags: ["Courses"],
+    summary: "List every assignment submission in a course",
+    description: "Admin, an instructor assigned to the course, or an external assessor. Includes resubmission history, newest first.",
+    security: [{ [bearerAuth.name]: [] }],
+    request: { params: CourseIdParam, query: courseSubmissionsQuerySchema },
+    responses: {
+      200: successEnvelope(z.array(SubmissionSchema), "Assignment submissions"),
+      ...pick(errorResponses, 400, 401, 403, 404),
+    },
+  });
+
+  registry.registerPath({
+    method: "get",
+    path: "/courses/{courseId}/quiz-attempts",
+    tags: ["Courses"],
+    summary: "List every quiz attempt in a course, with correct answers",
+    description: "Admin, an instructor assigned to the course, or an external assessor. Newest first.",
+    security: [{ [bearerAuth.name]: [] }],
+    request: { params: CourseIdParam, query: courseQuizAttemptsQuerySchema },
+    responses: {
+      200: successEnvelope(z.array(QuizAttemptReviewSchema), "Quiz attempts"),
+      ...pick(errorResponses, 400, 401, 403, 404),
     },
   });
 

@@ -23,6 +23,12 @@ export interface InviteInstructorPayload {
   courseIds?: string[]; // Optionally assign to courses immediately
 }
 
+export interface InviteExternalAssessorPayload {
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
 export interface IStudentWithCourses {
   student : IUser;
   courses: any[];

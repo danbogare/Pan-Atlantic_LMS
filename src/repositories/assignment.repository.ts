@@ -10,6 +10,8 @@ export interface IAssignmentSubmissionRepository {
   getSubmissionHistory(studentId: string, lessonId: string): Promise<IAssignmentSubmission[]>;
   grade(id: string, grade: number, feedback: string, gradedBy: string): Promise<IAssignmentSubmission | null>;
   getStudentAssignments(studentId: string): Promise<any[]>;
+  // Every submission in a course (full resubmission history), newest first, with student and lesson populated
+  findByCourse(courseId: string, filter?: { studentId?: string; status?: SubmissionStatus }): Promise<any[]>;
 }
 
 export class AssignmentSubmissionRepository implements IAssignmentSubmissionRepository {
@@ -66,6 +68,23 @@ export class AssignmentSubmissionRepository implements IAssignmentSubmissionRepo
         { new: true }
       )
       .exec();
+  }
+
+  public async findByCourse(
+    courseId: string,
+    filter: { studentId?: string; status?: SubmissionStatus } = {}
+  ): Promise<any[]> {
+    return await this.submissionModel
+      .find({
+        course: courseId,
+        ...(filter.studentId && { student: filter.studentId }),
+        ...(filter.status && { status: filter.status }),
+      })
+      .populate('student', 'firstName lastName email')
+      .populate('lesson', 'title module order')
+      .populate('gradedBy', 'firstName lastName')
+      .sort({ submittedAt: -1 })
+      .lean();
   }
 
   // Every assignment lesson in the student's enrolled courses, joined against

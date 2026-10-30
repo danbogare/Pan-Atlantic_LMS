@@ -2,6 +2,7 @@ import nodemailer, { Transporter } from "nodemailer";
 import { Resend } from "resend";
 import { studentInviteTemplate } from "../templates/student-invite.template";
 import { instructorInviteTemplate } from "../templates/instructor-invite.template";
+import { externalAssessorInviteTemplate } from "../templates/external-assessor-invite.template";
 import { studentWelcomeTemplate } from "../templates/student-welcome.template";
 import { emailVerificationTemplate } from "../templates/email-verification.template";
 import { passwordResetTemplate } from "../templates/password-reset.template";
@@ -65,6 +66,7 @@ export interface IMailService {
   sendStudentWelcomeEmail(email: string, firstName: string): Promise<void>;
   sendEmailVerificationEmail(email: string, firstName: string, code: string, expiresInMinutes: number): Promise<void>;
   sendInstructorInviteEmail(email: string, firstName: string, tempPassword: string): Promise<void>;
+  sendExternalAssessorInviteEmail(email: string, firstName: string, tempPassword: string): Promise<void>;
   sendPasswordResetEmail(email: string, firstName: string, otp: string, expiresInMinutes?: number ): Promise<void>;
 }
 export class MailService implements IMailService {
@@ -134,6 +136,28 @@ export class MailService implements IMailService {
       "Welcome to Pan-Atlantic LMS - Your Instructor Account";
 
     const html = instructorInviteTemplate(firstName, tempPassword);
+
+    try {
+      await this.provider.send(email, subject, html);
+
+      console.log(`Email sent to ${email}`);
+    } catch (error) {
+      console.error(`Email failed for ${email}:`, error);
+
+      // IMPORTANT: don't silently succeed
+      throw error;
+    }
+  }
+
+  async sendExternalAssessorInviteEmail(
+    email: string,
+    firstName: string,
+    tempPassword: string
+  ): Promise<void> {
+    const subject =
+      "Welcome to Pan-Atlantic LMS - Your External Assessor Account";
+
+    const html = externalAssessorInviteTemplate(firstName, tempPassword);
 
     try {
       await this.provider.send(email, subject, html);

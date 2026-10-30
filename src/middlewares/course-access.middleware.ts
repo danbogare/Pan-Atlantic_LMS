@@ -10,6 +10,9 @@ type AsyncMiddleware = (req: Request, res: Response, next: NextFunction) => Prom
 export interface ICourseAccessMiddleware {
   requireLearnAccess(resolve: CourseResolver): AsyncMiddleware;
   requireManageAccess(resolve: CourseResolver): AsyncMiddleware;
+  // Read-only routes: also let external assessors through (use only on GET routes)
+  requireViewAccess(resolve: CourseResolver): AsyncMiddleware;
+  requireOversightAccess(resolve: CourseResolver): AsyncMiddleware;
 
   fromParam(name: string): CourseResolver;
   fromBody(field: string): CourseResolver;
@@ -39,6 +42,24 @@ export class CourseAccessMiddleware implements ICourseAccessMiddleware {
       if (!req.user) throw new UnauthorizedError();
       const courseId = await resolve(req);
       await this.courseAccessService.assertCanManage(req.user, courseId);
+      next();
+    };
+  }
+
+  public requireViewAccess(resolve: CourseResolver): AsyncMiddleware {
+    return async (req, _res, next) => {
+      if (!req.user) throw new UnauthorizedError();
+      const courseId = await resolve(req);
+      await this.courseAccessService.assertCanView(req.user, courseId);
+      next();
+    };
+  }
+
+  public requireOversightAccess(resolve: CourseResolver): AsyncMiddleware {
+    return async (req, _res, next) => {
+      if (!req.user) throw new UnauthorizedError();
+      const courseId = await resolve(req);
+      await this.courseAccessService.assertCanOversee(req.user, courseId);
       next();
     };
   }

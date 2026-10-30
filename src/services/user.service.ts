@@ -17,6 +17,7 @@ import { computeAccessWindow } from "../utils/course-access";
 import { withCurrentStreak } from "../utils/streak";
 import {
   InviteInstructorPayload,
+  InviteExternalAssessorPayload,
   EnrollStudentPayload,
   IStudentWithCourses,
   IInstructorWithCourses,
@@ -30,6 +31,9 @@ export interface IUserService {
   
   // Instructor methods
   inviteInstructor(data: InviteInstructorPayload, assignedBy: string): Promise<void>;
+
+  // External assessor methods (read-only access to every course, its students and their progress)
+  inviteExternalAssessor(data: InviteExternalAssessorPayload): Promise<void>;
   
   // Common methods
   getAllInstructors(): Promise<any[]>;
@@ -141,6 +145,31 @@ export class UserService implements IUserService {
     // Send email in the background; a failure is logged by MailService and must not crash the process
     this.mailService.sendInstructorInviteEmail(email, firstName, tempPassword).catch(() => undefined);
     console.log(`Instructor ${email} created${courseIds.length > 0 ? ' and assigned to courses' : ''}`);
+  }
+
+  public async inviteExternalAssessor(data: InviteExternalAssessorPayload): Promise<void> {
+    const { firstName, lastName, email } = data;
+
+    const existingUser = await this.userRepository.findByEmail(email);
+    if (existingUser) {
+      throw new UserExistsError();
+    }
+
+    const tempPassword = this.cryptoService.generateTempPass();
+    const secureHash = await this.cryptoService.hashPassword(tempPassword);
+
+    await this.userRepository.create({
+      firstName,
+      lastName,
+      email,
+      passwordHash: secureHash,
+      role: UserRole.EXTERNAL_ASSESSOR,
+      mustChangePassword: true
+    });
+
+    // Send email in the background; a failure is logged by MailService and must not crash the process
+    this.mailService.sendExternalAssessorInviteEmail(email, firstName, tempPassword).catch(() => undefined);
+    console.log(`External assessor ${email} created`);
   }
 
   public async getAllInstructors(): Promise<IUser[]> {

@@ -9,6 +9,7 @@ export interface IQuizRepository {
   findByLesson(lessonId: string): Promise<IQuiz | null>;
   update(id: string, data: Partial<IQuiz>): Promise<IQuiz | null>;
   deleteByCourse(courseId: string): Promise<void>;
+  findByCourse(courseId: string): Promise<IQuiz[]>;
 }
 
 export interface IQuizAttemptRepository {
@@ -18,6 +19,8 @@ export interface IQuizAttemptRepository {
   getAttemptHistory(studentId: string, quizId: string): Promise<IQuizAttempt[]>;
   update(id: string, data: Partial<IQuizAttempt>): Promise<IQuizAttempt | null>;
   hasPassedAttempt(studentId: string, quizId: string): Promise<boolean>;
+  // Every attempt in a course, newest first, with student and lesson populated
+  findByCourse(courseId: string, filter?: { studentId?: string; status?: AttemptStatus }): Promise<any[]>;
 }
 
 export class QuizRepository implements IQuizRepository {
@@ -41,6 +44,10 @@ export class QuizRepository implements IQuizRepository {
 
   public async deleteByCourse(courseId: string): Promise<void> {
     await this.quizModel.deleteMany({ course: courseId }).exec();
+  }
+
+  public async findByCourse(courseId: string): Promise<IQuiz[]> {
+    return await this.quizModel.find({ course: courseId }).lean<IQuiz[]>().exec();
   }
 }
 
@@ -75,5 +82,22 @@ export class QuizAttemptRepository implements IQuizAttemptRepository {
   public async hasPassedAttempt(studentId: string, quizId: string): Promise<boolean> {
     const attempt = await this.attemptModel.exists({ student: studentId, quiz: quizId, passed: true });
     return !!attempt;
+  }
+
+  public async findByCourse(
+    courseId: string,
+    filter: { studentId?: string; status?: AttemptStatus } = {}
+  ): Promise<any[]> {
+    return await this.attemptModel
+      .find({
+        course: courseId,
+        ...(filter.studentId && { student: filter.studentId }),
+        ...(filter.status && { status: filter.status }),
+      })
+      .populate('student', 'firstName lastName email')
+      .populate('lesson', 'title module order')
+      .populate('gradedBy', 'firstName lastName')
+      .sort({ startedAt: -1 })
+      .lean();
   }
 }

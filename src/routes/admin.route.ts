@@ -7,6 +7,7 @@ import { asyncHandler } from "../middlewares/async-handler.middleware";
 import { validate } from "../middlewares/validation.middleware";
 import { enrollStudentSchema } from "../validators/student.validator";
 import { inviteInstructorSchema } from "../validators/instructor.validator";
+import { inviteExternalAssessorSchema } from "../validators/external-assessor.validator";
 import { updateUserInfoSchema } from "../validators/user.validator";
 import { broadcastNotificationSchema, createNotificationSchema } from "../validators/notification.validator";
 
@@ -39,6 +40,8 @@ export class AdminRouter {
     this.router.get("/students/:studentId", asyncHandler(this.userController.getStudentById));
     this.router.get("/instructors", asyncHandler(this.userController.getAllInstructors));
     this.router.get("/instructors/:instructorId", asyncHandler(this.userController.getInstructorById));
+    this.router.post("/external-assessor/invite", validate(inviteExternalAssessorSchema), asyncHandler(this.userController.inviteExternalAssessor));
+    this.router.get("/external-assessors", asyncHandler(this.userController.getAllExternalAssessors));
   }
 
   private initializeStatsRoutes(): void {

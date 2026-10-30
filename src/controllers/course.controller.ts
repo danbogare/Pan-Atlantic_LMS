@@ -35,6 +35,7 @@ export interface ICourseController {
   
   getCourseWithInstructors: (req: Request, res: Response) => Promise<void>;
   getCourseWithStudents: (req: Request, res: Response) => Promise<void>;
+  getStudentCourseProgress: (req: Request, res: Response) => Promise<void>;
   getCourseStats: (req: Request, res: Response) => Promise<void>;
   enrollStudent: (req: Request<{ courseId: string }, {}, EnrollInCourseInput>, res: Response) => Promise<void>;
   extendStudentAccess: (
@@ -80,7 +81,7 @@ export class CourseController implements ICourseController {
     successResponse(res, "Course details retrieved successfully", course);
   };
 
-  // Scoped by role: admin sees all, instructors their assigned courses, students their enrollments
+  // Scoped by role: admin/external assessor sees all, instructors their assigned courses, students their enrollments
   public getAllCourses = async (req: Request, res: Response): Promise<void> => {
     const filter = parseQuery(courseListQuerySchema, req.query);
     const courses = await this.courseService.getCoursesForUser(req.user!, filter);
@@ -214,6 +215,12 @@ export class CourseController implements ICourseController {
     const { courseId } = req.params;
     const course = await this.courseService.getCourseWithStudents(courseId as string);
     successResponse(res, "Course students retrieved successfully", course);
+  };
+
+  public getStudentCourseProgress = async (req: Request, res: Response): Promise<void> => {
+    const { courseId, studentId } = req.params;
+    const progress = await this.courseService.getStudentCourseProgress(courseId as string, studentId as string);
+    successResponse(res, "Student course progress retrieved successfully", progress);
   };
 
   public getCourseStats = async (req: Request, res: Response): Promise<void> => {
